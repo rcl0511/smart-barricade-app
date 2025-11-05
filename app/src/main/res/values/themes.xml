@@ -1,0 +1,8 @@
+<resources>
+    <style name="Theme.MyApplication" parent="Theme.Material3.Light.NoActionBar">
+        <!-- 필요하면 기본 색상 지정 -->
+        <item name="colorPrimary">@color/purple_500</item>
+        <item name="colorPrimaryDark">@color/purple_700</item>
+        <item name="colorAccent">@color/teal_200</item>
+    </style>
+</resources>

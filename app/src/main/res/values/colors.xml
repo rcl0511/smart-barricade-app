@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="purple_200">#CF284C6D</color>
+    <color name="purple_500">#EA284C6D</color>
+    <color name="purple_700">#CB284C6D</color>
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="teal_700">#FF018786</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <color name="alert_danger_bg">#FDE7E9</color>   <!-- 연한 빨강 배경 -->
+    <color name="alert_danger_on">#B3261E</color>  <!-- 글자/아이콘 빨강 -->
+    <color name="alert_warn_bg">#FFF7E0</color>    <!-- 연한 노랑 배경 -->
+    <color name="alert_warn_on">#7A5900</color>
+    <color name="alert_ok_bg">#E9F6EE</color>      <!-- 연한 초록 배경 -->
+    <color name="alert_ok_on">#0E7A3D</color>
+    <color name="alert_stroke">#22000000</color>   <!-- 약한 테두리 -->
+    <color name="alarm_danger_bg">#FDE7E9</color>
+    <color name="alarm_danger_fg">#B3261E</color>
+
+    <!-- Warning -->
+    <color name="alarm_warn_bg">#FFF7E0</color>
+    <color name="alarm_warn_fg">#7A5900</color>
+
+    <!-- OK/Info -->
+    <color name="alarm_ok_bg">#E9F6EE</color>
+    <color name="alarm_ok_fg">#0E7A3D</color>
+
+    <!-- App 네이비 팔레트 -->
+    <color name="navy_900">#0A1A2F</color>
+    <color name="navy_800">#102643</color>
+    <color name="navy_600">#193A63</color>
+    <color name="navy_300">#4C6A92</color>
+    <color name="on_navy">#FFFFFF</color>
+
+    <!-- LED 색상 -->
+    <color name="led_red">#FF3B30</color>
+    <color name="led_yellow">#FFCC00</color>
+    <color name="led_green">#34C759</color>
+
+
+
+</resources>

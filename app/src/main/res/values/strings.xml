@@ -1,0 +1,50 @@
+<resources>
+    <string name="app_name">Smart Barricade</string>
+
+    <string name="hint_serial">고급설정 · 시리얼 넘버 입력</string>
+    <string name="btn_connect">연결</string>
+    <string name="btn_disconnect">해제</string>
+
+    <string name="ip_hint_optional">(선택) 장치 IP:포트</string>
+    <string name="chip_connected">연결: 연결됨</string>
+    <string name="chip_disconnected">연결: 끊김</string>
+
+    <string name="device_title_placeholder">바리케이드 #A-12</string>
+    <string name="device_info_placeholder">신호 -68 dBm | 마지막통신 22:41:03 | 상태: 양호</string>
+
+
+    <string name="section_sensor">실시간 센서</string>
+    <string name="pressure_placeholder">압력: 2.1 kPa (Δ +0.2)</string>
+    <string name="threshold_placeholder">임계치: 주의 3.0 / 위험 5.0 kPa</string>
+    <string name="led_placeholder">LED: YELLOW_BLINK (가이드)</string>
+
+    <string name="section_control">조작</string>
+    <string name="btn_open_now">긴급 개방</string>
+    <string name="btn_open_step">단계 개방</string>
+    <string name="btn_close">즉시 폐쇄</string>
+    <string name="btn_led_panel">LED 제어</string>
+    <string name="auto_control_hint">임계치 초과시 자동제어(단계개방+적색점멸)</string>
+
+    <string name="section_alarm_log">알람 &amp; 로그</string>
+    <string name="log_placeholder">22:41:03 A-12 압력 4.9 kPa(주의) → LED YELLOW_BLINK&#10;22:42:11 A-12 압력 5.2 kPa(위험) → 단계 개방</string>
+
+    <string name="cd_battery">배터리 상태</string>
+    <string name="cd_barricade">바리케이드 기본 이미지</string>
+    <string name="cd_heatmap">히트맵 오버레이</string>
+
+    <string name="toast_need_serial">시리얼 번호를 입력하세요.</string>
+    <string name="toast_connected">%1$s 장치에 연결됨.</string>
+    <string name="toast_disconnected">연결이 해제되었습니다.</string>
+
+
+
+
+
+
+    <string name="detail_title">ㅇㅇ</string>
+    <string name="title">히트맵</string>
+
+
+
+
+</resources>

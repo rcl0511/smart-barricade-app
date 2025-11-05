@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- 개발 편의를 위해 평문 허용 -->
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>
