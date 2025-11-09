@@ -1,277 +1,325 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.core.widget.NestedScrollView
+<androidx.coordinatorlayout.widget.CoordinatorLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/scrollDetail"
+    android:id="@+id/root"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:fillViewport="true"
-    android:background="@android:color/white"
-    android:paddingTop="12dp"
-    android:paddingBottom="24dp">
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true">
 
-    <LinearLayout
-        android:padding="16dp"
-        android:orientation="vertical"
+    <!-- 상단 앱바 -->
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/topBar"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="?attr/actionBarSize"
+        app:title="바리케이드 상세"
+        app:titleCentered="false"
+        app:navigationIcon="@drawable/ic_chevron_down"
+        app:backgroundTint="@android:color/white"
+        app:titleTextColor="@android:color/black" />
 
-        <!-- (옵션) 헤더 -->
-        <TextView
-            android:id="@+id/txtSheetTitle"
+    <!-- 본문 스크롤 -->
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/scrollDetail"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:paddingTop="?attr/actionBarSize"
+        android:paddingBottom="24dp"
+        android:background="@android:color/white"
+        android:fillViewport="true">
+
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="바리케이드 상세"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:paddingBottom="8dp" />
+            android:orientation="vertical"
+            android:padding="16dp">
 
-        <!-- 0) 센서 카드 -->
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/cardSensor"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            app:cardCornerRadius="16dp"
-            app:cardBackgroundColor="@android:color/white" />
-
-        <!-- 1) 히트맵 -->
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            app:cardCornerRadius="16dp"
-            android:layout_marginTop="12dp"
-            android:layout_marginBottom="12dp"
-            app:cardBackgroundColor="@android:color/white">
-
-            <LinearLayout
-                android:padding="16dp"
-                android:orientation="vertical"
+            <!-- (옵션) 헤더 -->
+            <TextView
+                android:id="@+id/txtSheetTitle"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content">
+                android:layout_height="wrap_content"
+                android:text="바리케이드 상세"
+                android:textStyle="bold"
+                android:textSize="18sp"
+                android:paddingBottom="8dp" />
 
-                <TextView
-                    android:text="현재상태"
-                    android:textStyle="bold"
-                    android:textSize="16sp"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content" />
-
-                <FrameLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="220dp"
-                    android:layout_marginTop="12dp">
-
-                    <ImageView
-                        android:id="@+id/imgBarricadeBase"
-                        app:srcCompat="@drawable/heatmap_placeholder"
-                        android:scaleType="centerCrop"
-                        android:contentDescription="@string/cd_barricade"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent" />
-
-                    <ImageView
-                        android:id="@+id/imgHeatSpot"
-                        android:layout_width="120dp"
-                        android:layout_height="120dp"
-                        android:layout_gravity="center"
-                        app:srcCompat="@drawable/heat_radial"
-                        android:alpha="0.75"
-                        android:contentDescription="@string/cd_heatmap" />
-                </FrameLayout>
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- 2) 조작 패널 -->
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            app:cardCornerRadius="16dp"
-            android:layout_marginBottom="12dp"
-            app:cardBackgroundColor="@android:color/white">
-
-            <LinearLayout
-                android:padding="16dp"
-                android:orientation="vertical"
+            <!-- 0) 센서 카드 -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardSensor"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content">
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                app:cardCornerRadius="16dp"
+                app:cardBackgroundColor="@android:color/white"
+                app:cardPreventCornerOverlap="true" />
 
-                <TextView
-                    android:text="조작 패널"
-                    android:textStyle="bold"
-                    android:textSize="16sp"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content" />
+            <!-- 1) 히트맵 -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="12dp"
+                app:cardCornerRadius="16dp"
+                app:cardBackgroundColor="@android:color/white"
+                app:cardPreventCornerOverlap="true">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginTop="8dp">
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnOpenNow"
-                        style="?attr/materialButtonStyle"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="긴급 개방" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnOpenStep"
-                        style="?attr/materialButtonOutlinedStyle"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:layout_marginStart="8dp"
-                        android:text="단계 개방" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginTop="8dp">
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnClose"
-                        style="?attr/materialButtonOutlinedStyle"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="폐쇄" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnLedPanel"
-                        style="?attr/materialButtonOutlinedStyle"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="보안 요원 연결"
-                        android:layout_marginStart="8dp" />
-                </LinearLayout>
-
-                <com.google.android.material.materialswitch.MaterialSwitch
-                    android:id="@+id/switchAuto"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="임계치 초과시 자동제어(단계개방 + 적색점멸)"
-                    android:layout_marginTop="12dp" />
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- 3) LED 제어 -->
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            app:cardCornerRadius="16dp"
-            android:layout_marginBottom="12dp"
-            app:cardBackgroundColor="@android:color/white">
-
-            <LinearLayout
-                android:padding="16dp"
-                android:orientation="vertical"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
-                <TextView
-                    android:text="LED 제어"
-                    android:textStyle="bold"
-                    android:textSize="16sp"
-                    android:textColor="@android:color/black"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content" />
-
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/tilLedText"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    app:hintEnabled="true"
-                    app:boxBackgroundMode="outline"
-                    app:boxStrokeColor="@color/navy_300">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/edtLedMessage"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:hint="LED 표시 텍스트 (예: CAUTION)"
-                        android:imeOptions="actionDone"
-                        android:maxLines="1"
-                        android:textColorHint="@color/navy_300"
-                        android:textColor="@android:color/black" />
-                </com.google.android.material.textfield.TextInputLayout>
-
-                <FrameLayout
-                    android:id="@+id/ledPreview"
-                    android:layout_width="match_parent"
-                    android:layout_height="120dp"
-                    android:layout_marginTop="12dp"
-                    android:background="@drawable/bg_led_panel">
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
                     <TextView
-                        android:id="@+id/txtLedPreview"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:gravity="center"
-                        android:text="PREVIEW"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="현재상태"
                         android:textStyle="bold"
-                        android:textSize="24sp"
-                        android:textColor="@android:color/white"/>
-                </FrameLayout>
+                        android:textSize="16sp" />
+
+                    <!-- 이미지가 잘리지 않도록 wrap_content + adjustViewBounds + fitCenter -->
+                    <FrameLayout
+                        android:id="@+id/heatmapContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp">
+
+                        <ImageView
+                            android:id="@+id/imgBarricadeBase"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:adjustViewBounds="true"
+                            android:scaleType="fitCenter"
+                            android:src="@drawable/heatmap_placeholder" />
+
+                        <ImageView
+                            android:id="@+id/imgHeatSpot"
+                            android:layout_width="120dp"
+                            android:layout_height="120dp"
+                            android:layout_gravity="center"
+                            android:alpha="0.75"
+                            android:contentDescription="@string/cd_heatmap"
+                            android:src="@drawable/heat_radial" />
+
+                        <!-- ✅ 히트맵 위 텍스트 오버레이 -->
+                        <TextView
+                            android:id="@+id/txtHeatOverlay"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:padding="8dp"
+                            android:text="PREVIEW"
+                            android:textColor="@android:color/white"
+                            android:textSize="30sp"
+                            android:textStyle="bold"
+                            android:shadowColor="#80000000"
+                            android:shadowDx="0"
+                            android:shadowDy="2"
+                            android:shadowRadius="6" />
+                    </FrameLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- 2) 조작 패널 -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                app:cardCornerRadius="16dp"
+                app:cardBackgroundColor="@android:color/white"
+                app:cardPreventCornerOverlap="true">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginTop="8dp">
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnLedRed"
-                        style="?attr/materialButtonTonalStyle"
-                        android:layout_width="0dp"
+                    <TextView
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="빨강"
-                        app:backgroundTint="@color/led_red"
-                        android:textColor="@android:color/white" />
+                        android:text="조작 패널"
+                        android:textStyle="bold"
+                        android:textSize="16sp" />
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnLedYellow"
-                        style="?attr/materialButtonTonalStyle"
-                        android:layout_width="0dp"
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:layout_marginStart="8dp"
-                        android:text="노랑"
-                        app:backgroundTint="@color/led_yellow"
-                        android:textColor="@android:color/black" />
+                        android:orientation="horizontal"
+                        android:layout_marginTop="8dp">
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnLedGreen"
-                        style="?attr/materialButtonTonalStyle"
-                        android:layout_width="0dp"
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnOpenNow"
+                            style="?attr/materialButtonStyle"
+                            android:layout_width="0dp"
+                            android:layout_height="58dp"
+                            android:layout_weight="1"
+                            android:text="긴급 개방"
+                            android:textStyle="bold"
+                            android:textColor="@android:color/white"
+                            app:backgroundTint="#F44336" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnOpenStep"
+                            style="?attr/materialButtonOutlinedStyle"
+                            android:layout_width="0dp"
+                            android:layout_height="58dp"
+                            android:layout_marginStart="8dp"
+                            android:layout_weight="1"
+                            android:text="단계 개방"
+                            android:textStyle="bold"
+                            android:textColor="@android:color/black" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:layout_marginStart="8dp"
-                        android:text="초록"
-                        app:backgroundTint="@color/led_green"
-                        android:textColor="@android:color/black" />
+                        android:orientation="horizontal"
+                        android:layout_marginTop="8dp">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnClose"
+                            style="?attr/materialButtonOutlinedStyle"
+                            android:layout_width="0dp"
+                            android:layout_height="58dp"
+                            android:layout_weight="1"
+                            android:text="폐쇄"
+                            android:textStyle="bold"
+                            android:textColor="@android:color/black" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnLedPanel"
+                            style="?attr/materialButtonOutlinedStyle"
+                            android:layout_width="0dp"
+                            android:layout_height="58dp"
+                            android:layout_marginStart="8dp"
+                            android:layout_weight="1"
+                            android:text="보안 요원 연결"
+                            android:textStyle="bold"
+                            android:textColor="@android:color/black" />
+                    </LinearLayout>
+
+                    <com.google.android.material.materialswitch.MaterialSwitch
+                        android:id="@+id/switchAuto"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="임계치 초과시 자동제어(단계개방 + 적색점멸)" />
                 </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
-                <TextView
-                    android:layout_width="wrap_content"
+            <!-- 3) LED 제어 -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                app:cardCornerRadius="16dp"
+                app:cardBackgroundColor="@android:color/white"
+                app:cardPreventCornerOverlap="true">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="※ 텍스트 입력 후 색상 버튼을 누르면 LED 미리보기 색이 바뀝니다."
-                    android:textColor="@color/navy_300"
-                    android:textSize="12sp"/>
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="24dp" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="LED 제어"
+                        android:textColor="@android:color/black"
+                        android:textStyle="bold"
+                        android:textSize="16sp" />
 
-    </LinearLayout>
-</androidx.core.widget.NestedScrollView>
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/tilLedText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        app:boxBackgroundMode="outline"
+                        app:boxStrokeColor="@color/navy_300"
+                        app:hintEnabled="true">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/edtLedMessage"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="LED 표시 텍스트 (예: CAUTION)"
+                            android:imeOptions="actionDone"
+                            android:maxLines="1"
+                            android:textColor="@android:color/black"
+                            android:textColorHint="@color/navy_300" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <FrameLayout
+                        android:id="@+id/ledPreview"
+                        android:layout_width="match_parent"
+                        android:layout_height="120dp"
+                        android:layout_marginTop="12dp"
+                        android:background="@drawable/bg_led_panel">
+
+                        <TextView
+                            android:id="@+id/txtLedPreview"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:gravity="center"
+                            android:text="PREVIEW"
+                            android:textColor="@android:color/white"
+                            android:textStyle="bold"
+                            android:textSize="24sp" />
+                    </FrameLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="8dp">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnLedRed"
+                            style="?attr/materialButtonTonalStyle"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="빨강"
+                            android:textColor="@android:color/white"
+                            app:backgroundTint="@color/led_red" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnLedYellow"
+                            style="?attr/materialButtonTonalStyle"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:layout_weight="1"
+                            android:text="노랑"
+                            android:textColor="@android:color/black"
+                            app:backgroundTint="@color/led_yellow" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnLedGreen"
+                            style="?attr/materialButtonTonalStyle"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:layout_weight="1"
+                            android:text="초록"
+                            android:textColor="@android:color/black"
+                            app:backgroundTint="@color/led_green" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="※ 텍스트 입력 후 색상 버튼을 누르면 LED 미리보기 색이 바뀝니다."
+                        android:textColor="@color/navy_300"
+                        android:textSize="12sp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="24dp" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

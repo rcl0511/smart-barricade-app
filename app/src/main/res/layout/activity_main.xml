@@ -11,7 +11,7 @@
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/topBar"
         android:layout_width="match_parent"
-        android:layout_height="81dp"
+        android:layout_height="?attr/actionBarSize"
         app:title="@string/app_name" />
 
     <!-- 본문 스크롤 -->
@@ -50,6 +50,7 @@
                         android:textSize="16sp"
                         android:textStyle="bold" />
 
+                    <!-- 시리얼 입력 + 연결 버튼 -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -57,6 +58,7 @@
                         android:orientation="horizontal">
 
                         <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
@@ -75,6 +77,8 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="8dp"
+                            app:backgroundTint="#3C339FFF"
+                            app:cornerRadius="12dp"
                             android:text="연결" />
                     </LinearLayout>
 
@@ -84,43 +88,140 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
-                        android:text="연결 해제"
-                        android:textColor="@android:color/black"
-                        app:iconTint="#284c6d"
-                        app:strokeColor="#284c6d" />
+                        android:text="연결 해제" />
 
-                    <!-- 상태칩 -->
+                    <!-- 상태 칩 -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
-                        android:orientation="horizontal">
+                        android:orientation="horizontal"
+                        android:gravity="center"
+                        android:weightSum="3">
 
-                        <TextView
+                        <com.google.android.material.chip.Chip
                             android:id="@+id/chipConn"
+                            style="@style/Widget.Material3.Chip.Assist.Elevated"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="연결 안 됨" />
+                            android:layout_marginEnd="4dp"
+                            android:text="연결 안 됨"
+                            android:gravity="center"
+                            android:minWidth="0dp"
+                            app:chipIcon="@android:drawable/stat_sys_data_bluetooth"
+                            app:chipIconTint="#2196F3"
+                            app:chipIconVisible="true" />
 
-                        <TextView
+                        <com.google.android.material.chip.Chip
                             android:id="@+id/chipRtt"
+                            style="@style/Widget.Material3.Chip.Assist.Elevated"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
+                            android:layout_marginEnd="4dp"
                             android:text="RTT: - ms"
-                            android:textAlignment="center" />
+                            android:gravity="center"
+                            android:minWidth="0dp" />
 
-                        <TextView
+                        <com.google.android.material.chip.Chip
                             android:id="@+id/chipLoss"
+                            style="@style/Widget.Material3.Chip.Assist.Elevated"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:text="Loss: - %"
-                            android:textAlignment="textEnd" />
+                            android:gravity="center"
+                            android:minWidth="0dp" />
+                    </LinearLayout>
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- 제어 카드 (프리셋 버튼 3개 한 줄) -->
+            <!-- 제어 카드 (프리셋 시뮬레이션 + 버튼 3개) -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardPresets"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="20dp"
+                app:cardCornerRadius="16dp"
+                app:strokeColor="?attr/colorOutlineVariant"
+                app:strokeWidth="1dp"
+                app:cardBackgroundColor="@android:color/transparent"
+                app:contentPadding="12dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="center_horizontal">
+
+                    <!-- 🔹 안내 텍스트 -->
+                    <TextView
+                        android:id="@+id/txtPresetSim"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="🔹 시뮬레이션용 프리셋 알람 영역(테스트용) 🔹"
+                        android:textColor="@android:color/black"
+                        android:textSize="15sp"
+                        android:gravity="center"
+                        android:paddingVertical="8dp"
+                        android:background="#10CCCCCC" />
+
+                    <!-- 🔹 버튼 3개 한 줄 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center"
+                        android:weightSum="3"
+                        android:layout_marginTop="8dp">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnPresetLoad"
+                            style="?attr/materialButtonTonalStyle"
+                            android:layout_width="0dp"
+                            android:layout_height="48dp"
+                            android:layout_weight="1"
+                            android:layout_marginHorizontal="4dp"
+                            android:text="하중 임계"
+                            android:textStyle="bold"
+                            android:textSize="12.5sp"
+                            app:backgroundTint="#3C339FFF"
+                            app:cornerRadius="12dp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnPresetDensity"
+                            style="?attr/materialButtonTonalStyle"
+                            android:layout_width="0dp"
+                            android:layout_height="48dp"
+                            android:layout_weight="1"
+                            android:layout_marginHorizontal="4dp"
+                            android:text="밀집도 상승"
+                            android:textStyle="bold"
+                            android:textSize="12.5sp"
+                            app:backgroundTint="#3C339FFF"
+                            app:cornerRadius="12dp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnPresetBattery"
+                            style="?attr/materialButtonTonalStyle"
+                            android:layout_width="0dp"
+                            android:layout_height="48dp"
+                            android:layout_weight="1"
+                            android:layout_marginHorizontal="4dp"
+                            android:text="배터리 부족"
+                            android:textStyle="bold"
+                            android:textSize="12.5sp"
+                            app:backgroundTint="#3C339FFF"
+                            app:cornerRadius="12dp" />
                     </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
+
+
 
             <!-- 바리케이드 정보 카드 -->
             <com.google.android.material.card.MaterialCardView
@@ -135,172 +236,77 @@
                 app:strokeColor="?attr/colorOutlineVariant"
                 app:strokeWidth="1dp">
 
-                <LinearLayout
+                <!-- 상단: 디바이스 요약 -->
+                <androidx.constraintlayout.widget.ConstraintLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
                     android:padding="16dp">
 
-                    <!-- 상단: 디바이스 요약 -->
-                    <androidx.constraintlayout.widget.ConstraintLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content">
-
-                        <TextView
-                            android:id="@+id/txtDeviceTitle"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:text="바리케이드 #A-10"
-                            android:textSize="18sp"
-                            android:textStyle="bold"
-                            app:layout_constraintEnd_toStartOf="@+id/chipBattery"
-                            app:layout_constraintStart_toStartOf="parent"
-                            app:layout_constraintTop_toTopOf="parent" />
-
-                        <com.google.android.material.chip.Chip
-                            android:id="@+id/chipBattery"
-                            style="@style/Widget.Material3.Chip.Assist"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="99%"
-                            app:chipIcon="@drawable/ic_battery"
-                            app:chipIconTint="#284c6d"
-                            app:layout_constraintEnd_toEndOf="parent"
-                            app:layout_constraintTop_toTopOf="parent" />
-
-                        <TextView
-                            android:id="@+id/txtDeviceInfo"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="20dp"
-                            android:text="신호 -71 dBm | 마지막 통신: 14:12:10 | 상태: 정상"
-                            app:layout_constraintEnd_toEndOf="parent"
-                            app:layout_constraintStart_toStartOf="parent"
-                            app:layout_constraintTop_toBottomOf="@id/txtDeviceTitle" />
-                    </androidx.constraintlayout.widget.ConstraintLayout>
-
-                    <!-- 구분선 -->
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:layout_marginVertical="12dp"
-                        android:background="?attr/colorOutlineVariant" />
-
-                    <!-- 내부 알람 카드 1 -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
+                    <TextView
+                        android:id="@+id/txtDeviceTitle"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="6dp"
-                        android:background="#FFF7F7F7"
-                        android:elevation="1dp"
-                        android:orientation="vertical"
-                        android:padding="10dp">
+                        android:text="바리케이드 #A-10"
+                        android:textSize="25sp"
+                        android:textStyle="bold"
+                        app:layout_constraintEnd_toStartOf="@+id/chipBattery"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent" />
 
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:gravity="center_vertical"
-                            android:orientation="horizontal">
-
-                            <com.google.android.material.chip.Chip
-                                style="@style/Widget.Material3.Chip.Assist"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="INFO"
-                                android:textColor="@android:color/white"
-                                app:chipBackgroundColor="#284c6d" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginStart="8dp"
-                                android:text="11:32:10"
-                                android:textColor="?attr/colorOnSurfaceVariant"
-                                android:textSize="12sp" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginStart="6dp"
-                                android:text="• #A-10"
-                                android:textColor="?attr/colorOnSurfaceVariant"
-                                android:textSize="12sp" />
-                        </LinearLayout>
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp"
-                            android:text="우측 패널 하중 임계 근접"
-                            android:textSize="15sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:text="현재 하중 150kg, 임계값 200kg, 2m 구간 밀집도 상승"
-                            android:textSize="13sp" />
-                    </LinearLayout>
-
-                    <!-- 내부 알람 카드 2 -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chipBattery"
+                        style="@style/Widget.Material3.Chip.Assist"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:background="#FFF7F7F7"
-                        android:elevation="1dp"
-                        android:orientation="vertical"
-                        android:padding="10dp">
+                        android:text="99%"
+                        app:chipIcon="@drawable/ic_battery"
+                        app:chipIconVisible="true"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintTop_toTopOf="parent" />
 
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:gravity="center_vertical"
-                            android:orientation="horizontal">
+                    <TextView
+                        android:id="@+id/txtDeviceInfo"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="20dp"
+                        android:textStyle="bold"
+                        android:text="신호 -71 dBm | 마지막 통신: 14:12:10 | 상태: 정상"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toBottomOf="@id/txtDeviceTitle" />
 
-                            <com.google.android.material.chip.Chip
-                                style="@style/Widget.Material3.Chip.Assist"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="WARN"
-                                android:textColor="@android:color/white"
-                                app:chipBackgroundColor="#d34f4f" />
+                    <!-- ✅ 여기 추가 -->
+                    <TextView
+                        android:id="@+id/txtSensorStatus"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="압력 센서 상태: 135 kgf"
+                        android:textSize="14sp"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textStyle="bold"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toBottomOf="@id/txtDeviceInfo" />
 
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginStart="8dp"
-                                android:text="11:35:28"
-                                android:textColor="?attr/colorOnSurfaceVariant"
-                                android:textSize="12sp" />
+                </androidx.constraintlayout.widget.ConstraintLayout>
 
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginStart="6dp"
-                                android:text="• #A-10"
-                                android:textColor="?attr/colorOnSurfaceVariant"
-                                android:textSize="12sp" />
-                        </LinearLayout>
 
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp"
-                            android:text="좌측 패널 밀집도 상승"
-                            android:textSize="15sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:text="혼잡도 지수 0.72 → 0.83 상승, 접근 제한 필요"
-                            android:textSize="13sp" />
-                    </LinearLayout>
-
-                </LinearLayout>
+                <!-- 구분선 -->
             </com.google.android.material.card.MaterialCardView>
+
+
+
+
+            <!-- 알람 리스트 -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/recyclerAlarms"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:nestedScrollingEnabled="false"
+                tools:listitem="@layout/item_alarm" />
+
+            <!-- (옵션) 센서 요약 카드 - 이후 확장 -->
 
 
         </LinearLayout>

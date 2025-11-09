@@ -36,6 +36,12 @@
     <string name="toast_connected">%1$s 장치에 연결됨.</string>
     <string name="toast_disconnected">연결이 해제되었습니다.</string>
 
+    <string name="acknowledge">확인</string>
+    <string name="details">자세히</string>
+
+
+
+
 
 
 
