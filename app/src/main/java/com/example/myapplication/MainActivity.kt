@@ -1,14 +1,33 @@
 package com.example.myapplication
 
+import android.Manifest
+import android.annotation.SuppressLint
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCallback
+import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
+import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanResult
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.viewModels
+import androidx.annotation.RequiresPermission
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
 import androidx.core.widget.addTextChangedListener
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -20,6 +39,8 @@ import androidx.transition.AutoTransition
 import androidx.transition.TransitionManager
 import com.example.myapplication.data.model.AlarmEvent
 import com.example.myapplication.data.model.AlarmLevel
+import com.example.myapplication.data.net.ApiClient
+import com.example.myapplication.data.net.SensorLatestResponse
 import com.example.myapplication.ui.main.AlarmAdapter
 import com.example.myapplication.ui.main.MainViewModel
 import com.example.myapplication.ui.util.PermissionHelper
@@ -27,14 +48,16 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.chip.Chip
 import com.google.android.material.snackbar.Snackbar
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
-import android.graphics.Color
-import android.content.res.ColorStateList
 
 class MainActivity : AppCompatActivity() {
 
@@ -46,26 +69,38 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnConnect: MaterialButton
     private lateinit var btnDisconnect: MaterialButton
 
-    // 프리셋 테스트 버튼 3종
-    private lateinit var btnPresetLoad: MaterialButton
-    private lateinit var btnPresetDensity: MaterialButton
-    private lateinit var btnPresetBattery: MaterialButton
+    // 프리셋 버튼 (레이아웃에서 없어질 수도 있으니 nullable)
+    private var btnPresetLoad: MaterialButton? = null
+    private var btnPresetDensity: MaterialButton? = null
+    private var btnPresetBattery: MaterialButton? = null
 
-    private lateinit var chipConn: TextView
+    private lateinit var chipConn: TextView   // Chip이지만 TextView로 받음
     private lateinit var chipRtt: TextView
     private lateinit var chipLoss: TextView
     private lateinit var chipBattery: Chip
 
     private var txtDeviceTitle: TextView? = null
     private var txtDeviceInfo: TextView? = null
+    private var txtSensorStatus: TextView? = null   // 서버 센서값 표시
 
     private var cardDevice: MaterialCardView? = null
     private var cardSensor: MaterialCardView? = null
-    private var cardPresets: MaterialCardView? = null   // ✅ 여기로 변경
     private var scroll: ViewGroup? = null
 
     private var recyclerAlarms: RecyclerView? = null
 
+    // ---------- BLE 관련 ----------
+    private var bluetoothAdapter: BluetoothAdapter? = null
+    private var bluetoothGatt: BluetoothGatt? = null
+    private var isScanning = false
+    private val scanHandler = Handler(Looper.getMainLooper())
+    private val SCAN_PERIOD = 10_000L  // 10초 스캔
+
+    // 스캔 중 발견한 기기 리스트
+    private val discoveredDevices = mutableListOf<BluetoothDevice>()
+
+    // ---------- 알람 어댑터 ----------
+    private val vm: MainViewModel by viewModels()
     private val alarmAdapter = AlarmAdapter(
         onAcknowledge = { /* 서버 업로드 등 필요시 */ },
         onDetails = { event ->
@@ -84,16 +119,114 @@ class MainActivity : AppCompatActivity() {
         }
     )
 
-    // ---------- VM & 권한 ----------
-    private val vm: MainViewModel by viewModels()
+    // ---------- 권한 ----------
     private lateinit var perm: PermissionHelper
 
+    // ---------- BLE 스캔 콜백 ----------
+    private val leScanCallback = object : ScanCallback() {
+        @SuppressLint("MissingPermission")
+        override fun onScanResult(callbackType: Int, result: ScanResult?) {
+            super.onScanResult(callbackType, result)
+            val device: BluetoothDevice = result?.device ?: return
+            val name = device.name ?: ""
+
+            Log.d("BLE_SCAN", "발견: $name / ${device.address}")
+
+            // 이미 추가된 기기면 스킵
+            if (discoveredDevices.any { it.address == device.address }) return
+            discoveredDevices.add(device)
+        }
+    }
+
+    // ---------- GATT 콜백 ----------
+    private val gattCallback = object : BluetoothGattCallback() {
+
+        @SuppressLint("MissingPermission")
+        override fun onConnectionStateChange(
+            gatt: BluetoothGatt?,
+            status: Int,
+            newState: Int
+        ) {
+            super.onConnectionStateChange(gatt, status, newState)
+
+            when (newState) {
+                BluetoothProfile.STATE_CONNECTED -> {
+                    Log.d("BLE_GATT", "연결됨: ${gatt?.device?.address}")
+                    bluetoothGatt = gatt
+                    runOnUiThread {
+                        chipConn.text = "연결됨 (BLE)"
+                        chipConn.setTextColor(Color.BLUE)
+                        toast("BLE 기기 연결 성공")
+                        detailsExpanded = true
+                        applyExpandState(animated = true)
+                    }
+                    // ✅ 서비스 탐색 시작
+                    gatt?.discoverServices()
+                }
+
+                BluetoothProfile.STATE_DISCONNECTED -> {
+                    Log.d("BLE_GATT", "연결 끊김")
+                    bluetoothGatt = null
+                    runOnUiThread {
+                        chipConn.text = "연결 안 됨"
+                        chipConn.setTextColor(Color.GRAY)
+                        toast("BLE 연결 끊김")
+                        detailsExpanded = false
+                        applyExpandState(animated = true)
+                    }
+                }
+            }
+        }
+
+        // ✅ 서비스 발견 후에야 RSSI 읽기 가능
+        @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
+        override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
+            super.onServicesDiscovered(gatt, status)
+
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                Log.d("BLE_GATT", "서비스 발견됨 → RSSI 읽기 및 루프 시작")
+                // 첫 1회 읽기
+                gatt?.readRemoteRssi()
+                // 이후 주기 루프
+                startRssiLoop()
+            } else {
+                Log.w("BLE_GATT", "서비스 발견 실패: status=$status")
+            }
+        }
+
+        @SuppressLint("MissingPermission")
+        override fun onReadRemoteRssi(
+            gatt: BluetoothGatt?,
+            rssi: Int,
+            status: Int
+        ) {
+            super.onReadRemoteRssi(gatt, rssi, status)
+
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                Log.d("BLE_RSSI", "RSSI 콜백: $rssi dBm")
+                runOnUiThread {
+                    txtDeviceInfo?.text =
+                        "신호 ${rssi} dBm | 마지막 통신: ${
+                            formatTime(System.currentTimeMillis())
+                        } | 상태: 정상"
+                }
+            } else {
+                Log.w("BLE_RSSI", "RSSI 읽기 실패: status=$status")
+            }
+        }
+    }
+
+    // ---------- 생명주기 ----------
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // 개발단계 우회 스위치 (실기기 붙일 때 false)
-        PermissionHelper.DEV_BYPASS = true
+        // 실기기 붙일 땐 false 유지
+        PermissionHelper.DEV_BYPASS = false
+
+        // BLE 어댑터
+        val bluetoothManager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
+        bluetoothAdapter = bluetoothManager.adapter
 
         bindViews()
         setupRecycler()
@@ -102,31 +235,39 @@ class MainActivity : AppCompatActivity() {
         wireUi()
         bindViewModel()
         applyExpandState(animated = false)
+
+        // FastAPI 서버 센서값 폴링
+        startSensorPolling()
     }
 
-    // -------------------- 초기 바인딩 --------------------
+    override fun onDestroy() {
+        super.onDestroy()
+        disconnectBle()
+    }
+
+    // -------------------- View 바인딩 --------------------
     private fun bindViews() {
         serialEdit    = findViewById(R.id.serialEdit)
         btnConnect    = findViewById(R.id.btnConnect)
         btnDisconnect = findViewById(R.id.btnDisconnect)
 
-        // 프리셋 버튼
+        // 프리셋 버튼 (레이아웃에 없으면 null 그대로)
         btnPresetLoad    = findViewById(R.id.btnPresetLoad)
         btnPresetDensity = findViewById(R.id.btnPresetDensity)
         btnPresetBattery = findViewById(R.id.btnPresetBattery)
 
-        chipConn = findViewById(R.id.chipConn)
-        chipRtt  = findViewById(R.id.chipRtt)
-        chipLoss = findViewById(R.id.chipLoss)
+        chipConn    = findViewById(R.id.chipConn)
+        chipRtt     = findViewById(R.id.chipRtt)
+        chipLoss    = findViewById(R.id.chipLoss)
         chipBattery = findViewById(R.id.chipBattery)
 
-        txtDeviceTitle = findViewById(R.id.txtDeviceTitle)
-        txtDeviceInfo  = findViewById(R.id.txtDeviceInfo)
+        txtDeviceTitle  = findViewById(R.id.txtDeviceTitle)
+        txtDeviceInfo   = findViewById(R.id.txtDeviceInfo)
+        txtSensorStatus = findViewById(R.id.txtSensorStatus)
 
-        cardDevice  = findViewById(R.id.cardDevice)
-        cardSensor  = findViewById(R.id.cardSensor)
-        cardPresets = findViewById(R.id.cardPresets)   // ✅ 여기로 변경
-        scroll      = findViewById(R.id.scroll)
+        cardDevice = findViewById(R.id.cardDevice)
+        cardSensor = findViewById(R.id.cardSensor)
+        scroll     = findViewById(R.id.scroll)
 
         recyclerAlarms = findViewById(R.id.recyclerAlarms)
     }
@@ -142,7 +283,8 @@ class MainActivity : AppCompatActivity() {
     private fun setupSwipeToDelete() {
         recyclerAlarms?.let { rv ->
             val swipe = object : ItemTouchHelper.SimpleCallback(
-                0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT
+                0,
+                ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT
             ) {
                 override fun onMove(
                     recyclerView: RecyclerView,
@@ -174,22 +316,23 @@ class MainActivity : AppCompatActivity() {
     // -------------------- UI 이벤트 --------------------
     private fun wireUi() {
         serialEdit.addTextChangedListener {
-            val hasSerial = !serialEdit.text?.toString().isNullOrBlank()
-            btnConnect.isEnabled = hasSerial
+            btnConnect.isEnabled = hasSerial()
         }
-        btnConnect.isEnabled = !serialEdit.text?.toString().isNullOrBlank()
+        btnConnect.isEnabled = hasSerial()
 
         btnConnect.setOnClickListener {
-            if (serialEdit.text?.toString().isNullOrBlank()) {
+            if (!hasSerial()) {
                 toast(getString(R.string.toast_need_serial))
                 return@setOnClickListener
             }
             chipConn.text = "🔗 연결 시도 중..."
+            chipConn.setTextColor(Color.DKGRAY)
             perm.requestBlePermissions()
         }
 
         btnDisconnect.setOnClickListener {
-            vm.disconnect()
+            vm.disconnect()   // Fake 연결 끊기
+            disconnectBle()   // 실제 BLE 연결 끊기
             detailsExpanded = false
             applyExpandState(animated = true)
             toast(getString(R.string.toast_disconnected))
@@ -203,7 +346,8 @@ class MainActivity : AppCompatActivity() {
                     .putExtra("device_id", serial)
             )
         }
-        // 카드 롱탭 → 시리얼 전달 방식
+
+        // 카드 롱탭 → 다른 extra 키로 전달 테스트
         cardDevice?.setOnLongClickListener {
             val serial = serialOrDefault("A-12")
             startActivity(
@@ -213,8 +357,8 @@ class MainActivity : AppCompatActivity() {
             true
         }
 
-        // 프리셋 알람 3종
-        btnPresetLoad.setOnClickListener {
+        // 프리셋 알람 (버튼이 존재할 때만)
+        btnPresetLoad?.setOnClickListener {
             pushPresetAlarm(
                 level = AlarmLevel.WARN,
                 title = "하중 임계 근접",
@@ -222,8 +366,7 @@ class MainActivity : AppCompatActivity() {
                 device = serialOrDefault("A-10")
             )
         }
-
-        btnPresetDensity.setOnClickListener {
+        btnPresetDensity?.setOnClickListener {
             pushPresetAlarm(
                 level = AlarmLevel.WARN,
                 title = "밀집도 급상승",
@@ -231,8 +374,7 @@ class MainActivity : AppCompatActivity() {
                 device = serialOrDefault("B-03")
             )
         }
-
-        btnPresetBattery.setOnClickListener {
+        btnPresetBattery?.setOnClickListener {
             pushPresetAlarm(
                 level = AlarmLevel.ERROR,
                 title = "배터리 부족",
@@ -242,33 +384,36 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // -------------------- VM 바인딩 --------------------
+    // -------------------- ViewModel 바인딩 --------------------
     private fun bindViewModel() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
+                // 연결 상태
                 launch {
                     vm.conn.collectLatest { s ->
-                        chipConn.text = if (s.connected)
-                            getString(R.string.chip_connected)
-                        else
-                            getString(R.string.chip_disconnected)
-
+                        Log.d("VM_CONN", "collect: $s")
                         chipRtt.text  = s.rttMs?.let { "RTT: ${it} ms" } ?: "RTT: - ms"
                         chipLoss.text = s.lossPct?.let { "Loss: ${it} %" } ?: "Loss: - %"
 
-                        val hasSerial = !serialEdit.text?.toString().isNullOrBlank()
-                        btnConnect.isEnabled = !s.connected && hasSerial
+                        btnConnect.isEnabled = !s.connected && hasSerial()
                         btnDisconnect.isEnabled = s.connected
                     }
                 }
+
+                // 디바이스 메타 정보
                 launch {
                     vm.device.collectLatest { d ->
                         txtDeviceTitle?.text = d.title
+                        // 여기서는 상태 정도만 보여주고,
+                        // 신호(dBm)는 onReadRemoteRssi에서만 업데이트 하도록 분리
                         val last = formatTime(System.currentTimeMillis())
-                        val sig  = d.signalDbm ?: -71
-                        txtDeviceInfo?.text = "신호 ${sig} dBm | 마지막 통신: $last | 상태: ${d.status}"
+                        // txtDeviceInfo?.text =
+                        //     "신호 - dBm | 마지막 통신: $last | 상태: ${d.status}"
+                        // → 아예 제거하거나, 필요하면 다른 TextView에 상태만 따로 찍어줘
                     }
                 }
+
+                // 알람 리스트
                 launch {
                     vm.alarms.collectLatest { list ->
                         recyclerAlarms?.let { alarmAdapter.submitList(list) }
@@ -284,19 +429,173 @@ class MainActivity : AppCompatActivity() {
         val color = when {
             level >= 75 -> Color.parseColor("#4CAF50")
             level >= 40 -> Color.parseColor("#FFC107")
-            else -> Color.parseColor("#F44336")
+            else        -> Color.parseColor("#F44336")
         }
         chipBattery.chipIconTint = ColorStateList.valueOf(color)
         chipBattery.setTextColor(color)
     }
 
-    // -------------------- 동작 함수 --------------------
+    // -------------------- FastAPI 폴링 --------------------
+    private fun startSensorPolling() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            while (isActive) {
+                try {
+                    val response = ApiClient.api.getLatestSensor()
+                    withContext(Dispatchers.Main) {
+                        if (response.isSuccessful) {
+                            val body: SensorLatestResponse? = response.body()
+                            txtSensorStatus?.text = formatSensorStatus(body)
+                        } else {
+                            // HTTP 500, 404 등
+                            txtSensorStatus?.text =
+                                "압력 센서 상태: 서버 오류 (${response.code()})"
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("SENSOR_POLL", "네트워크 예외", e)
+                    withContext(Dispatchers.Main) {
+                        // 진짜 네트워크 끊겼을 때 여기로 옴
+                        txtSensorStatus?.text = "압력 센서 상태: 네트워크 에러"
+                    }
+                }
+
+                delay(1000) // 1초마다
+            }
+        }
+    }
+
+    // 센서 상태 텍스트 포맷 헬퍼
+    private fun formatSensorStatus(body: SensorLatestResponse?): String {
+        return when {
+            body == null -> "압력 센서 상태: 응답 없음"
+            body.value != null -> {
+                val v = body.value
+                val led = body.led
+                "압력 센서 값: $v (LED: ${if (led == 1) "ON" else "OFF"})"
+            }
+            body.message != null -> "압력 센서 상태: ${body.message}"
+            else -> "압력 센서 상태: 데이터 없음"
+        }
+    }
+
+    // -------------------- BLE 권한 체크 --------------------
+    private fun hasBlePermissions(): Boolean {
+        val scanGranted = ActivityCompat.checkSelfPermission(
+            this, Manifest.permission.BLUETOOTH_SCAN
+        ) == PackageManager.PERMISSION_GRANTED
+
+        val connectGranted = ActivityCompat.checkSelfPermission(
+            this, Manifest.permission.BLUETOOTH_CONNECT
+        ) == PackageManager.PERMISSION_GRANTED
+
+        return scanGranted && connectGranted
+    }
+
+    // -------------------- BLE 동작 함수 --------------------
+    @SuppressLint("MissingPermission")
+    private fun startBleScan() {
+        if (!hasBlePermissions()) {
+            toast("BLE 권한이 아직 허용되지 않았어요.")
+            return
+        }
+
+        val adapter = bluetoothAdapter
+        if (adapter == null || !adapter.isEnabled) {
+            toast("블루투스를 켜주세요.")
+            return
+        }
+
+        if (isScanning) return
+
+        discoveredDevices.clear()
+
+        chipConn.text = "스캔 중..."
+        chipConn.setTextColor(Color.DKGRAY)
+
+        val scanner = adapter.bluetoothLeScanner
+        if (scanner == null) {
+            toast("BLE 스캐너를 사용할 수 없습니다.")
+            return
+        }
+
+        isScanning = true
+        scanner.startScan(leScanCallback)
+
+        scanHandler.postDelayed({
+            if (isScanning) {
+                stopBleScan()
+                showDeviceSelectDialog()
+            }
+        }, SCAN_PERIOD)
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun stopBleScan() {
+        val adapter = bluetoothAdapter ?: return
+        val scanner = adapter.bluetoothLeScanner ?: return
+        if (!isScanning) return
+
+        scanner.stopScan(leScanCallback)
+        isScanning = false
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun showDeviceSelectDialog() {
+        if (discoveredDevices.isEmpty()) {
+            chipConn.text = "기기 없음"
+            chipConn.setTextColor(Color.RED)
+            toast("주변에서 연결 가능한 기기를 찾지 못했어요.")
+            return
+        }
+
+        val items = discoveredDevices.map { device ->
+            val name = device.name ?: "(이름 없음)"
+            "$name\n${device.address}"
+        }.toTypedArray()
+
+        chipConn.text = "기기 선택 대기 중"
+        chipConn.setTextColor(Color.DKGRAY)
+
+        AlertDialog.Builder(this)
+            .setTitle("연결할 BLE 기기를 선택하세요")
+            .setItems(items) { _, which ->
+                val device = discoveredDevices[which]
+                connectToDevice(device)
+            }
+            .setNegativeButton("취소") { _, _ ->
+                chipConn.text = "연결 안 됨"
+                chipConn.setTextColor(Color.GRAY)
+            }
+            .show()
+    }
+
+
+
+    @SuppressLint("MissingPermission")
+    private fun connectToDevice(device: BluetoothDevice) {
+        chipConn.text = "연결 중... (${device.name ?: "알 수 없음"})"
+        chipConn.setTextColor(Color.DKGRAY)
+        bluetoothGatt = device.connectGatt(this, false, gattCallback)
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun disconnectBle() {
+        stopBleScan()
+        bluetoothGatt?.close()
+        bluetoothGatt = null
+    }
+
+    // -------------------- 기타 헬퍼 --------------------
     private fun proceedConnect() {
         val serial = serialOrDefault()
-        vm.connect(serial)  // FakeBleRepository 사용 중이면 모의 연결
-        detailsExpanded = true
-        applyExpandState(animated = true)
-        toast(getString(R.string.toast_connected, serial))
+
+        // FakeBleRepository 연결 (VM 쪽 시뮬레이션)
+        vm.connect(serial)
+
+        // 실제 BLE 스캔
+        startBleScan()
+
+        toast("BLE 기기 검색 시작 (시리얼: $serial)")
     }
 
     private fun applyExpandState(animated: Boolean) {
@@ -308,11 +607,9 @@ class MainActivity : AppCompatActivity() {
             )
         }
         val vis = if (detailsExpanded) View.VISIBLE else View.GONE
-        cardSensor?.visibility  = vis
-        cardPresets?.visibility = vis   // ✅ 여기로 변경
+        cardSensor?.visibility = vis
     }
 
-    // 프리셋 공용 함수
     private fun pushPresetAlarm(
         level: AlarmLevel,
         title: String,
@@ -336,6 +633,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun hasSerial(): Boolean =
+        !serialEdit.text?.toString().isNullOrBlank()
+
     private fun serialOrDefault(def: String = "A-10"): String =
         serialEdit.text?.toString()?.trim().orEmpty().ifEmpty { def }
 
@@ -344,4 +644,18 @@ class MainActivity : AppCompatActivity() {
 
     private fun toast(msg: String) =
         Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+
+    // -------------------- RSSI 주기적 읽기 루프 --------------------
+    @SuppressLint("MissingPermission")
+    private fun startRssiLoop() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            while (isActive) {
+                bluetoothGatt?.let { gatt ->
+                    val ok = gatt.readRemoteRssi()
+                    Log.d("BLE_RSSI", "readRemoteRssi() 요청: $ok")
+                }
+                delay(1500)
+            }
+        }
+    }
 }

@@ -138,8 +138,11 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- 제어 카드 (프리셋 버튼 3개 한 줄) -->
-            <!-- 제어 카드 (프리셋 시뮬레이션 + 버튼 3개) -->
+
+<!--
+
+            &lt;!&ndash; 제어 카드 (프리셋 버튼 3개 한 줄) &ndash;&gt;
+            &lt;!&ndash; 제어 카드 (프리셋 시뮬레이션 + 버튼 3개) &ndash;&gt;
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardPresets"
                 android:layout_width="match_parent"
@@ -158,7 +161,7 @@
                     android:orientation="vertical"
                     android:gravity="center_horizontal">
 
-                    <!-- 🔹 안내 텍스트 -->
+                    &lt;!&ndash; 🔹 안내 텍스트 &ndash;&gt;
                     <TextView
                         android:id="@+id/txtPresetSim"
                         android:layout_width="match_parent"
@@ -170,7 +173,7 @@
                         android:paddingVertical="8dp"
                         android:background="#10CCCCCC" />
 
-                    <!-- 🔹 버튼 3개 한 줄 -->
+                    &lt;!&ndash; 🔹 버튼 3개 한 줄 &ndash;&gt;
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -221,6 +224,8 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+-->
+
 
 
             <!-- 바리케이드 정보 카드 -->
@@ -258,7 +263,7 @@
                         style="@style/Widget.Material3.Chip.Assist"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="99%"
+                        android:text="98%"
                         app:chipIcon="@drawable/ic_battery"
                         app:chipIconVisible="true"
                         app:layout_constraintEnd_toEndOf="parent"
@@ -270,7 +275,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="20dp"
                         android:textStyle="bold"
-                        android:text="신호 -71 dBm | 마지막 통신: 14:12:10 | 상태: 정상"
+                        android:text="신호 dBm | 마지막 통신: | 상태: "
                         app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintTop_toBottomOf="@id/txtDeviceTitle" />
@@ -281,7 +286,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
-                        android:text="압력 센서 상태: 135 kgf"
+                        android:text="압력 센서 상태: kgf"
                         android:textSize="14sp"
                         android:textColor="?attr/colorOnSurfaceVariant"
                         android:textStyle="bold"

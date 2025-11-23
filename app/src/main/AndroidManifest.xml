@@ -2,16 +2,34 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- 인터넷/진동 -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
+
+    <!-- Android 11 이하 (maxSdkVersion=30) -->
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30"/>
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30"/>
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30"/>
 
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation"/>
-    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+    <!-- Android 12 이상 (API 31+) 필수 권한 -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation"
+        tools:targetApi="31"/>
+
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_CONNECT"
+        tools:targetApi="31"/>
+
+    <!-- 위치 권한 (일부 기기에서 스캔 시 필요) -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+
+    <!-- 알림 -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
+    <!-- BLE 기능 -->
+    <uses-feature
+        android:name="android.hardware.bluetooth_le"
+        android:required="true"/>
 
     <application
         android:allowBackup="true"
@@ -33,9 +51,9 @@
             </intent-filter>
         </activity>
 
-        <!-- 상세 화면 등록 (중요) -->
         <activity
             android:name=".BarricadeDetailActivity"
             android:exported="false"/>
     </application>
+
 </manifest>
