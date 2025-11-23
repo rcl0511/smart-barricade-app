@@ -1,0 +1,140 @@
+/*******************************************************
+ * ESP32-S3 FSR 센서 + BLE Notify + WiFi POST
+ * (LED + JSON 포함, Render HTTPS 연동)
+ *******************************************************/
+
+#include <WiFi.h>
+#include <WiFiClientSecure.h>   // ✅ HTTPS용
+#include <HTTPClient.h>
+
+#include <BLEDevice.h>
+#include <BLEServer.h>
+#include <BLEUtils.h>
+#include <BLE2902.h>
+
+// ======== WIFI SECTION ========
+const char* WIFI_SSID     = "U+Net97A4";
+const char* WIFI_PASSWORD = "5F8#4527HE";
+
+// ✅ Render에 올린 FastAPI 서버 주소
+const char* SERVER_URL = "https://android-qdfu.onrender.com/sensor";
+
+// HTTPS용 클라이언트 (전역)
+WiFiClientSecure secureClient;
+
+// ======== BLE SECTION ========
+#define SERVICE_UUID        "12345678-1234-1234-1234-1234567890ab"
+#define CHARACTERISTIC_UUID "abcd1234-1234-5678-9999-abcdef123456"
+BLECharacteristic* pCharacteristic;
+
+// ======== SENSOR SECTION ========
+// ⚠ ESP32-S3에서 실제로 ADC 가능한 핀인지 확인 필요 (예: GPIO34 쓸 때는 34로)
+const int SENSOR_PIN = 1;
+const int THRESHOLD  = 700;
+
+
+// ======== WIFI 연결 ========
+void connectWiFi() {
+  Serial.println("🔌 WiFi 연결중...");
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(400);
+    Serial.print(".");
+  }
+
+  Serial.println("\n📶 WiFi 연결 완료!");
+  Serial.print("IP 주소: ");
+  Serial.println(WiFi.localIP());
+
+  // ✅ HTTPS 테스트를 위해 인증서 검증 비활성화 (실습용)
+  secureClient.setInsecure();
+}
+
+
+// ======== 서버 POST ========
+void postToServer(int val, int led) {
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("⚠ WiFi 끊김 → 재연결");
+    connectWiFi();
+  }
+
+  HTTPClient http;
+
+  // ✅ HTTPS + 커스텀 클라이언트 사용
+  if (!http.begin(secureClient, SERVER_URL)) {
+    Serial.println("❌ http.begin 실패");
+    return;
+  }
+
+  http.addHeader("Content-Type", "application/json");
+
+  String json = "{";
+  json += "\"device_id\":\"A-10\",";
+  json += "\"value\":" + String(val) + ",";
+  json += "\"led\":"   + String(led);
+  json += "}";
+
+  Serial.print("➡ 서버 POST: ");
+  Serial.println(json);
+
+  int code = http.POST(json);
+  Serial.print("⬅ 서버 응답: ");
+  Serial.println(code);
+
+  http.end();
+}
+
+
+// ======== SETUP ========
+void setup() {
+  Serial.begin(115200);
+  delay(800);
+
+  connectWiFi();
+
+  // BLE 초기화
+  BLEDevice::init("SmartFSR-A10");
+  BLEServer* pServer = BLEDevice::createServer();
+  BLEService* pService = pServer->createService(SERVICE_UUID);
+
+  pCharacteristic = pService->createCharacteristic(
+      CHARACTERISTIC_UUID,
+      BLECharacteristic::PROPERTY_READ |
+      BLECharacteristic::PROPERTY_NOTIFY
+  );
+
+  pCharacteristic->addDescriptor(new BLE2902());
+  pService->start();
+  BLEDevice::startAdvertising();
+
+  Serial.println("📡 BLE Advertising 시작!");
+}
+
+
+// ======== LOOP ========
+unsigned long lastSend = 0;
+
+void loop() {
+  unsigned long now = millis();
+
+  if (now - lastSend >= 10000) {  // 10초마다 전송
+    lastSend = now;
+
+    int val = analogRead(SENSOR_PIN);
+    int ledState = (val > THRESHOLD) ? 1 : 0;
+
+    Serial.print("📟 FSR 센서값: ");
+    Serial.print(val);
+    Serial.print(" / LED: ");
+    Serial.println(ledState);
+
+    // BLE Notify 전송
+    String msg = String(val) + "\t" + String(ledState);
+    pCharacteristic->setValue(msg.c_str());
+    pCharacteristic->notify();
+
+    // 서버 전송
+    postToServer(val, ledState);
+  }
+}
