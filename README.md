@@ -9,30 +9,29 @@ ESP32 기반 센서 모듈과 Android 디바이스 간 BLE/WiFi 통신을 사용
 
 
 ## System Architecture
-System Architecture
 
 ```mermaid
-
 flowchart TD
 
-A[arduino (FSR / Load Cell)] --> B[ESP32-S3 센서 모듈]
+A[Arduino FSR / Load Cell] --> B[ESP32-S3 Sensor Module]
 
-B -->|BLE Notify| C[Android App<br>실시간 모니터링]
+B -->|BLE Notify| C[Android App<br>Real-time Monitoring]
 B -->|WiFi HTTP POST| D[FastAPI Server<br>/sensor/latest]
 
 C -->|BLE Write| B
 C -->|Gate OPEN/CLOSE| B
 
-D -->|상태 조회<br>GET /sensor/latest| C
+D -->|GET /sensor/latest| C
 
-subgraph Android App
+subgraph Android_App
 C
 end
 
-subgraph FastAPI Server
+subgraph FastAPI_Server
 D
 end
 ```
+
 ## 실시간 데이터 흐름
 
 ### ▶ ESP32 → Android (BLE Notify)
