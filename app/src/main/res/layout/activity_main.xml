@@ -102,13 +102,13 @@
                         <com.google.android.material.chip.Chip
                             android:id="@+id/chipConn"
                             style="@style/Widget.Material3.Chip.Assist.Elevated"
-                            android:layout_width="0dp"
+                            android:layout_width="149dp"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
                             android:layout_marginEnd="4dp"
-                            android:text="연결 안 됨"
+                            android:layout_weight="1"
                             android:gravity="center"
                             android:minWidth="0dp"
+                            android:text="연결 안 됨"
                             app:chipIcon="@android:drawable/stat_sys_data_bluetooth"
                             app:chipIconTint="#2196F3"
                             app:chipIconVisible="true" />
@@ -116,23 +116,14 @@
                         <com.google.android.material.chip.Chip
                             android:id="@+id/chipRtt"
                             style="@style/Widget.Material3.Chip.Assist.Elevated"
-                            android:layout_width="0dp"
+                            android:layout_width="163dp"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
                             android:layout_marginEnd="4dp"
-                            android:text="RTT: - ms"
-                            android:gravity="center"
-                            android:minWidth="0dp" />
-
-                        <com.google.android.material.chip.Chip
-                            android:id="@+id/chipLoss"
-                            style="@style/Widget.Material3.Chip.Assist.Elevated"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="Loss: - %"
                             android:gravity="center"
-                            android:minWidth="0dp" />
+                            android:minWidth="0dp"
+                            android:text="RTT: - ms" />
+
                     </LinearLayout>
 
                 </LinearLayout>
@@ -280,7 +271,7 @@
                         app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintTop_toBottomOf="@id/txtDeviceTitle" />
 
-                    <!-- ✅ 여기 추가 -->
+
                     <TextView
                         android:id="@+id/txtSensorStatus"
                         android:layout_width="wrap_content"
@@ -292,6 +283,21 @@
                         android:textStyle="bold"
                         app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintTop_toBottomOf="@id/txtDeviceInfo" />
+
+                    <com.github.mikephil.charting.charts.LineChart
+                        android:id="@+id/chartPressure"
+                        android:layout_width="0dp"
+                        android:layout_height="200dp"
+                        android:layout_marginTop="12dp"
+                        app:layout_constraintTop_toBottomOf="@id/txtSensorStatus"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        tools:ignore="MissingClass"
+                        android:layout_marginStart="0dp"
+                        android:layout_marginEnd="0dp"
+                        />
+
+
 
                 </androidx.constraintlayout.widget.ConstraintLayout>
 

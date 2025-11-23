@@ -1,3 +1,5 @@
+import org.gradle.kotlin.dsl.implementation
+
 // <project-root>/app/build.gradle.kts
 plugins {
     alias(libs.plugins.android.application)
@@ -44,17 +46,17 @@ android {
 }
 
 dependencies {
-    implementation(libs.androidx.core.ktx.v1101)
-    implementation(libs.androidx.appcompat)
-
-    implementation(libs.androidx.appcompat)
-    implementation(libs.material.v1120)
+    implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
     implementation(libs.okhttp)
-    implementation(libs.kotlinx.coroutines.android.v181)
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.lifecycle.runtime.ktx.v286)
+    implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+
+// 그래프 라이브러리
+    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
+
+
 
 
     // HTTP
