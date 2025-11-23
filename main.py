@@ -1,14 +1,14 @@
 # main.py
 from fastapi import FastAPI
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timezone
 
 app = FastAPI()
 
 class SensorPayload(BaseModel):
-    device_id: str | None = None  # 여러 보드 쓸 거면
-    value: int                    # 센서 값 (0~4095)
-    led: int | None = None        # 옵션: LED 상태
+    device_id: str | None = None
+    value: int
+    led: int | None = None
 
 latest_data: dict | None = None
 
@@ -16,7 +16,8 @@ latest_data: dict | None = None
 def receive_sensor(payload: SensorPayload):
     global latest_data
     latest_data = {
-        "timestamp": datetime.now().isoformat(),
+        # 서버가 센서 데이터를 "받은 정확한 시간"
+        "received_at": datetime.now(timezone.utc).isoformat(),  
         "device_id": payload.device_id,
         "value": payload.value,
         "led": payload.led,
