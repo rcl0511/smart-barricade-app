@@ -6,6 +6,8 @@ import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
+import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.bluetooth.le.ScanCallback
@@ -18,7 +20,6 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.TextView
@@ -39,11 +40,15 @@ import androidx.transition.AutoTransition
 import androidx.transition.TransitionManager
 import com.example.myapplication.data.model.AlarmEvent
 import com.example.myapplication.data.model.AlarmLevel
-import com.example.myapplication.data.net.ApiClient
-import com.example.myapplication.data.net.SensorLatestResponse
 import com.example.myapplication.ui.main.AlarmAdapter
 import com.example.myapplication.ui.main.MainViewModel
 import com.example.myapplication.ui.util.PermissionHelper
+import com.github.mikephil.charting.charts.LineChart
+import com.github.mikephil.charting.components.LimitLine
+import com.github.mikephil.charting.components.XAxis
+import com.github.mikephil.charting.data.Entry
+import com.github.mikephil.charting.data.LineData
+import com.github.mikephil.charting.data.LineDataSet
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.chip.Chip
@@ -53,47 +58,53 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
-import java.time.OffsetDateTime
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
-import com.github.mikephil.charting.charts.LineChart
-import com.github.mikephil.charting.data.Entry
-import com.github.mikephil.charting.data.LineData
-import com.github.mikephil.charting.data.LineDataSet
-import com.github.mikephil.charting.components.XAxis
-import com.github.mikephil.charting.components.LimitLine
 
 class MainActivity : AppCompatActivity() {
 
     // ---------- 상태 ----------
-    private var detailsExpanded = false   // 지금은 cardSensor 안 쓰지만, 나중 확장용으로 남겨둠
+    private var detailsExpanded = false
 
     // ---------- View refs ----------
     private lateinit var serialEdit: EditText
     private lateinit var btnConnect: MaterialButton
     private lateinit var btnDisconnect: MaterialButton
 
-    // 프리셋 버튼 (레이아웃에서 없어질 수도 있으니 nullable)
+    // 🔹 LED / GATE 제어 버튼
+    private lateinit var btnLedOn: MaterialButton
+    private lateinit var btnLedOff: MaterialButton
+    private lateinit var btnGateOpen: MaterialButton
+    private lateinit var btnGateClose: MaterialButton
+
     private var btnPresetLoad: MaterialButton? = null
     private var btnPresetDensity: MaterialButton? = null
     private var btnPresetBattery: MaterialButton? = null
 
-    private lateinit var chipConn: TextView   // Chip이지만 TextView로 받음
-    private lateinit var chipRtt: TextView    // E2E(ESP32→서버→앱) 지연 표시용
+    private lateinit var chipConn: TextView      // 연결 상태
+    private lateinit var chipRtt: TextView       // BLE 기준 마지막 수신 시각 표기용
 
     private lateinit var chipBattery: Chip
 
     private var txtDeviceTitle: TextView? = null
     private var txtDeviceInfo: TextView? = null
-    private var txtSensorStatus: TextView? = null   // 서버 센서값 표시
+    private var txtSensorStatus: TextView? = null   // 상단 카드 센서 텍스트
 
     private var cardDevice: MaterialCardView? = null
     private var scroll: ViewGroup? = null
 
     private var recyclerAlarms: RecyclerView? = null
+
+    // ▼ 실시간 상태 대시보드(View)
+    private var txtSensorTitle: TextView? = null
+    private var txtSensorLevel: TextView? = null
+    private var txtFsrValue: TextView? = null
+    private var txtLedState: TextView? = null
+    private var txtBuzzerState: TextView? = null
+    private var txtMotorState: TextView? = null
+    private var txtLastUpdated: TextView? = null
 
     // ---------- BLE 관련 ----------
     private var bluetoothAdapter: BluetoothAdapter? = null
@@ -102,19 +113,37 @@ class MainActivity : AppCompatActivity() {
     private val scanHandler = Handler(Looper.getMainLooper())
     private val SCAN_PERIOD = 10_000L  // 10초 스캔
 
+    private val discoveredDevices = mutableListOf<BluetoothDevice>()
+
+    // ESP32-S3 서비스 / 캐릭터리스틱 UUID (아두이노 코드와 반드시 동일해야 함)
+    private val SERVICE_UUID = java.util.UUID.fromString(
+        "12345678-1234-1234-1234-1234567890ab"
+    )
+    private val CHAR_UUID_NOTIFY = java.util.UUID.fromString(
+        "abcd1234-1234-5678-9999-abcdef123456" // ✅ ESP32 → Android (Notify) - ESP32랑 동일하게!
+    )
+    private val CHAR_UUID_WRITE = java.util.UUID.fromString(
+        "abcd0002-1234-5678-9999-abcdef123456" // Android → ESP32 (Write)
+    )
+    private val CCCD_UUID = java.util.UUID.fromString(
+        "00002902-0000-1000-8000-00805f9b34fb"
+    )
+
     // ---------- Chart ----------
     private lateinit var chartPressure: LineChart
-    private val pressureEntries = ArrayList<Entry>()   // 압력 데이터
+    private val pressureEntries = ArrayList<Entry>()
     private var pressureX = 0f
     private val PRESSURE_THRESHOLD = 700
 
-    // 스캔 중 발견한 기기 리스트
-    private val discoveredDevices = mutableListOf<BluetoothDevice>()
+    // 차트 너무 튀지 않게 → 2초마다 한 점만 추가
+    private var lastChartUpdateMs = 0L
+    private val CHART_INTERVAL_MS = 2000L
+    private var lastBleUpdateMs = 0L  // 디버깅용(필요 없으면 삭제해도 됨)
 
-    // ---------- 알람 어댑터 ----------
+    // ---------- 알람 / ViewModel ----------
     private val vm: MainViewModel by viewModels()
     private val alarmAdapter = AlarmAdapter(
-        onAcknowledge = { /* 서버 업로드 등 필요시 */ },
+        onAcknowledge = { /* 필요시 서버 업로드 등 */ },
         onDetails = { event ->
             startActivity(
                 Intent(this, BarricadeDetailActivity::class.java)
@@ -144,7 +173,6 @@ class MainActivity : AppCompatActivity() {
 
             Log.d("BLE_SCAN", "발견: $name / ${device.address}")
 
-            // 이미 추가된 기기면 스킵
             if (discoveredDevices.any { it.address == device.address }) return
             discoveredDevices.add(device)
         }
@@ -172,7 +200,6 @@ class MainActivity : AppCompatActivity() {
                         detailsExpanded = true
                         applyExpandState(animated = true)
                     }
-                    // 서비스 탐색 시작
                     gatt?.discoverServices()
                 }
 
@@ -195,9 +222,10 @@ class MainActivity : AppCompatActivity() {
             super.onServicesDiscovered(gatt, status)
 
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                Log.d("BLE_GATT", "서비스 발견됨 → RSSI 루프 시작")
+                Log.d("BLE_GATT", "서비스 발견됨 → RSSI 루프 + Notify 설정")
                 gatt?.readRemoteRssi()
                 startRssiLoop()
+                enableFsrNotify(gatt)
             } else {
                 Log.w("BLE_GATT", "서비스 발견 실패: status=$status")
             }
@@ -223,30 +251,52 @@ class MainActivity : AppCompatActivity() {
                 Log.w("BLE_RSSI", "RSSI 읽기 실패: status=$status")
             }
         }
+
+        // ▼ ESP32에서 넘어온 센서 문자열 처리
+        @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
+        override fun onCharacteristicChanged(
+            gatt: BluetoothGatt?,
+            characteristic: BluetoothGattCharacteristic?
+        ) {
+            super.onCharacteristicChanged(gatt, characteristic)
+            if (characteristic == null) return
+            if (characteristic.uuid != CHAR_UUID_NOTIFY) return
+
+            val raw = characteristic.value ?: return
+            val text = String(raw, Charsets.UTF_8).trim()
+            Log.d("BLE_NOTIFY", "수신 문자열: $text")
+
+            // 예: "235,1,0,0"  → FSR, LED, BUZ, MOT
+            val parts = text.split(",")
+            val fsr = parts.getOrNull(0)?.toIntOrNull() ?: return
+            val led = parts.getOrNull(1)?.toIntOrNull() ?: 0
+            val buz = parts.getOrNull(2)?.toIntOrNull() ?: 0
+            val mot = parts.getOrNull(3)?.toIntOrNull() ?: 0
+
+            runOnUiThread {
+                handleBleSensorUpdate(fsr, led, buz, mot)
+            }
+        }
     }
 
     // ---------- Chart 세팅 ----------
+    // ---------- Chart 세팅 ----------
     private fun setupChart() {
-        // 1) 데이터셋 스타일
-        val dataSet = LineDataSet(pressureEntries, "압력 센서 값").apply {
+        // 초기 데이터셋 (비어있는 상태로 생성)
+        val dataSet = LineDataSet(mutableListOf<Entry>(), "압력 센서 값").apply {
             lineWidth = 2f
             color = Color.parseColor("#1E88E5")
-
             setDrawCircles(false)
             setDrawValues(false)
-
             mode = LineDataSet.Mode.LINEAR
-
             setDrawFilled(true)
             fillAlpha = 60
             fillColor = Color.parseColor("#1E88E5")
         }
 
         chartPressure.apply {
-            // ⭐ 여백 자동 계산 초기화 (이게 제일 중요)
             resetViewPortOffsets()
-
-            data = LineData(dataSet)
+            data = LineData(dataSet)   // ✅ 무조건 LineData 세팅
 
             description.isEnabled = false
             legend.isEnabled = false
@@ -258,32 +308,25 @@ class MainActivity : AppCompatActivity() {
 
             axisRight.isEnabled = false
 
-            // 왼쪽 숫자 잘 안 짤리게 살짝만 추가 여백
-            // (너무 크면 또 줄어들 수 있으니까 8~16 정도만)
             setExtraLeftOffset(12f)
             setMinOffset(12f)
 
-            // X축
             xAxis.apply {
                 position = XAxis.XAxisPosition.BOTTOM
                 setDrawGridLines(false)
                 setDrawAxisLine(false)
-                setDrawLabels(false)   // 실시간이면 라벨 안보여도 됨
+                setDrawLabels(false)
             }
 
-            // Y축
             axisLeft.apply {
                 axisMinimum = 0f
-                axisMaximum = 1500f   // 갑자기 큰 값 나와도 항상 보이게 고정
-
+                axisMaximum = 1500f
                 setDrawAxisLine(false)
                 setDrawGridLines(true)
                 enableGridDashedLine(10f, 10f, 0f)
-
                 textSize = 10f
             }
 
-            // 임계값 라인
             val limit = LimitLine(PRESSURE_THRESHOLD.toFloat(), "임계값").apply {
                 lineWidth = 1.5f
                 lineColor = Color.RED
@@ -299,26 +342,82 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun updateChartWithSensor(body: SensorLatestResponse?) {
-        val v = body?.value ?: return
-        appendPressureValue(v)
+
+    // BLE 센서값 들어올 때마다 UI 전체 갱신
+    private fun handleBleSensorUpdate(fsr: Int, led: Int, buz: Int, mot: Int) {
+        val now = System.currentTimeMillis()
+        lastBleUpdateMs = now
+
+        // 상단 카드 텍스트
+        txtSensorStatus?.text = "압력 센서 값(BLE): $fsr"
+
+        // 실시간 대시보드
+        txtFsrValue?.text = "FSR 값: $fsr"
+        txtLedState?.text = "LED: ${if (led == 1) "ON" else "OFF"}"
+        txtBuzzerState?.text = "부저: ${if (buz == 1) "ON" else "OFF"}"
+        txtMotorState?.text = "모터: ${if (mot == 1) "OPEN" else "CLOSE"}"
+        txtLastUpdated?.text = "마지막 수신: ${formatTime(now)}"
+
+        // 상태 레벨 배지
+        val (label, color) = when {
+            fsr >= PRESSURE_THRESHOLD -> "위험" to Color.parseColor("#D32F2F")
+            fsr >= PRESSURE_THRESHOLD * 0.7 -> "주의" to Color.parseColor("#F9A825")
+            else -> "대기" to Color.parseColor("#388E3C")
+        }
+        txtSensorLevel?.text = label
+        txtSensorLevel?.setBackgroundColor(color)
+
+        chipRtt.text = "BLE 업데이트: ${formatTime(now)}"
+
+        // 차트는 2초마다 한 점만 추가
+        appendPressureValue(fsr)
     }
 
+    // 그래프에 점 추가 (2초에 한 번만)
     private fun appendPressureValue(value: Int) {
-        pressureX += 1f
-        pressureEntries.add(Entry(pressureX, value.toFloat()))
+        val now = System.currentTimeMillis()
 
-        if (pressureEntries.size > 60) {
-            pressureEntries.removeAt(0)
+        if (now - lastChartUpdateMs < CHART_INTERVAL_MS) {
+            return
+        }
+        lastChartUpdateMs = now
+
+        pressureX += 1f
+
+        // ✅ data / dataset 없으면 안전하게 생성
+        val data = chartPressure.data ?: LineData().also {
+            chartPressure.data = it
         }
 
-        val dataSet = chartPressure.data.getDataSetByIndex(0) as LineDataSet
+        var dataSet = data.getDataSetByIndex(0) as? LineDataSet
+        if (dataSet == null) {
+            dataSet = LineDataSet(mutableListOf(), "압력 센서 값").apply {
+                lineWidth = 2f
+                color = Color.parseColor("#1E88E5")
+                setDrawCircles(false)
+                setDrawValues(false)
+                mode = LineDataSet.Mode.LINEAR
+                setDrawFilled(true)
+                fillAlpha = 60
+                fillColor = Color.parseColor("#1E88E5")
+            }
+            data.addDataSet(dataSet)
+        }
+
+        // 실제 점 추가
+        dataSet.addEntry(Entry(pressureX, value.toFloat()))
+
+        // 오래된 점 삭제
+        if (dataSet.entryCount > 60) {
+            dataSet.removeFirst()
+        }
+
         dataSet.notifyDataSetChanged()
-        chartPressure.data.notifyDataChanged()
+        data.notifyDataChanged()
         chartPressure.notifyDataSetChanged()
 
         chartPressure.moveViewToX(pressureX)
-        chartPressure.animateX(500)
+        chartPressure.invalidate()
 
         if (value >= PRESSURE_THRESHOLD) {
             toast("⚠ 압력 임계값 초과: $value")
@@ -349,7 +448,6 @@ class MainActivity : AppCompatActivity() {
         bindViewModel()
         setupChart()
         applyExpandState(animated = false)
-        startSensorPolling()
     }
 
     override fun onDestroy() {
@@ -362,6 +460,12 @@ class MainActivity : AppCompatActivity() {
         serialEdit    = findViewById(R.id.serialEdit)
         btnConnect    = findViewById(R.id.btnConnect)
         btnDisconnect = findViewById(R.id.btnDisconnect)
+
+        // 🔹 LED / GATE 제어 버튼
+        btnLedOn      = findViewById(R.id.btnLedOn)
+        btnLedOff     = findViewById(R.id.btnLedOff)
+        btnGateOpen   = findViewById(R.id.btnGateOpen)
+        btnGateClose  = findViewById(R.id.btnGateClose)
 
         btnPresetLoad    = findViewById(R.id.btnPresetLoad)
         btnPresetDensity = findViewById(R.id.btnPresetDensity)
@@ -382,6 +486,15 @@ class MainActivity : AppCompatActivity() {
         chartPressure = findViewById(R.id.chartPressure)
 
         recyclerAlarms = findViewById(R.id.recyclerAlarms)
+
+        // ▼ 실시간 상태 대시보드
+        txtSensorTitle  = findViewById(R.id.txtSensorTitle)
+        txtSensorLevel  = findViewById(R.id.txtSensorLevel)
+        txtFsrValue     = findViewById(R.id.txtFsrValue)
+        txtLedState     = findViewById(R.id.txtLedState)
+        txtBuzzerState  = findViewById(R.id.txtBuzzerState)
+        txtMotorState   = findViewById(R.id.txtMotorState)
+        txtLastUpdated  = findViewById(R.id.txtLastUpdated)
     }
 
     private fun setupRecycler() {
@@ -467,6 +580,40 @@ class MainActivity : AppCompatActivity() {
             true
         }
 
+        // 🔹 LED / GATE 제어 버튼 → ESP32로 명령 전송
+        btnLedOn.setOnClickListener {
+            if (hasBlePermissions()) {
+                sendBleCommand("LED_ON")
+            } else {
+                perm.requestBlePermissions()
+            }
+        }
+
+        btnLedOff.setOnClickListener {
+            if (hasBlePermissions()) {
+                sendBleCommand("LED_OFF")
+            } else {
+                perm.requestBlePermissions()
+            }
+        }
+
+        btnGateOpen.setOnClickListener {
+            if (hasBlePermissions()) {
+                sendBleCommand("MOTOR_ON")   // 게이트 OPEN = 모터 ON
+            } else {
+                perm.requestBlePermissions()
+            }
+        }
+
+        btnGateClose.setOnClickListener {
+            if (hasBlePermissions()) {
+                sendBleCommand("MOTOR_OFF")  // 게이트 CLOSE = 모터 OFF
+            } else {
+                perm.requestBlePermissions()
+            }
+        }
+
+        // 프리셋 버튼은 테스트 알람용
         btnPresetLoad?.setOnClickListener {
             pushPresetAlarm(
                 level = AlarmLevel.WARN,
@@ -520,7 +667,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // -------------------- 배터리 표시 --------------------
+    // -------------------- 배터리 표시 (BLE에서 배터리 값 들어오면 여기로) --------------------
     fun updateBattery(level: Int) {
         chipBattery.text = "$level%"
         val color = when {
@@ -530,74 +677,6 @@ class MainActivity : AppCompatActivity() {
         }
         chipBattery.chipIconTint = ColorStateList.valueOf(color)
         chipBattery.setTextColor(color)
-    }
-
-    // -------------------- FastAPI 폴링 --------------------
-    private fun startSensorPolling() {
-        lifecycleScope.launch(Dispatchers.IO) {
-            while (isActive) {
-                try {
-                    val response = ApiClient.api.getLatestSensor()
-                    withContext(Dispatchers.Main) {
-                        if (response.isSuccessful) {
-                            val body: SensorLatestResponse? = response.body()
-                            txtSensorStatus?.text = formatSensorStatus(body)
-                            updateEndToEndLatency(body)
-                            updateChartWithSensor(body)
-                        } else {
-                            txtSensorStatus?.text =
-                                "압력 센서 상태: 서버 오류 (${response.code()})"
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.e("SENSOR_POLL", "네트워크 예외", e)
-                    withContext(Dispatchers.Main) {
-                        txtSensorStatus?.text = "압력 센서 상태: 네트워크 에러"
-                    }
-                }
-
-                delay(1000) // 1초마다
-            }
-        }
-    }
-
-    // 센서 상태 텍스트 포맷
-    private fun formatSensorStatus(body: SensorLatestResponse?): String {
-        return when {
-            body == null -> "압력 센서 상태: 응답 없음"
-            body.value != null -> {
-                val v = body.value
-                val led = body.led
-                "압력 센서 값: $v (LED: ${if (led == 1) "ON" else "OFF"})"
-            }
-            body.message != null -> "압력 센서 상태: ${body.message}"
-            else -> "압력 센서 상태: 데이터 없음"
-        }
-    }
-
-    // ESP32 → 서버 → 앱까지 E2E 지연 계산 (received_at 사용)
-// ESP32 → 서버 → 앱까지 E2E 지연 계산 (received_at 사용)
-    private fun updateEndToEndLatency(body: SensorLatestResponse?) {
-        val ts = body?.received_at ?: return
-
-        try {
-            val serverTimeMs = OffsetDateTime.parse(ts)
-                .toInstant()
-                .toEpochMilli()
-
-            val nowMs = System.currentTimeMillis()
-            val e2e = nowMs - serverTimeMs
-
-            chipRtt.text = if (e2e >= 0) {
-                val seconds = e2e / 1000.0
-                String.format("Delay: %.2f s", seconds)
-            } else {
-                "Delay: - s"
-            }
-        } catch (e: Exception) {
-            Log.e("LATENCY", "timestamp 파싱 실패: $ts", e)
-            chipRtt.text = "Delay: - s"
-        }
     }
 
     // -------------------- BLE 권한 체크 --------------------
@@ -708,10 +787,8 @@ class MainActivity : AppCompatActivity() {
     // -------------------- 기타 헬퍼 --------------------
     private fun proceedConnect() {
         val serial = serialOrDefault()
-
-        vm.connect(serial)   // Fake repo 쪽 상태
-        startBleScan()       // 실제 BLE 스캔
-
+        vm.connect(serial)
+        startBleScan()
         toast("BLE 기기 검색 시작 (시리얼: $serial)")
     }
 
@@ -723,8 +800,7 @@ class MainActivity : AppCompatActivity() {
                 AutoTransition().setDuration(180)
             )
         }
-        // 현재는 숨길 cardSensor가 없어서 아무것도 안 함.
-        // 나중에 상세 카드 추가하면 여기에서 VISIBLE/GONE 처리하면 됨.
+        // 지금은 숨길 카드 없음 (필요하면 cardSensor VISIBLE/GONE 처리)
     }
 
     private fun pushPresetAlarm(
@@ -773,6 +849,71 @@ class MainActivity : AppCompatActivity() {
                 }
                 delay(1500)
             }
+        }
+    }
+
+    // -------------------- Notify 설정 --------------------
+    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
+    private fun enableFsrNotify(gatt: BluetoothGatt?) {
+        if (gatt == null) return
+
+        val service = gatt.getService(SERVICE_UUID)
+        if (service == null) {
+            Log.w("BLE_NOTIFY", "서비스 못 찾음: $SERVICE_UUID")
+            return
+        }
+
+        val chNotify = service.getCharacteristic(CHAR_UUID_NOTIFY)
+        if (chNotify == null) {
+            Log.w("BLE_NOTIFY", "Notify 특성 못 찾음: $CHAR_UUID_NOTIFY")
+            return
+        }
+
+        val ok = gatt.setCharacteristicNotification(chNotify, true)
+        Log.d("BLE_NOTIFY", "setCharacteristicNotification 결과: $ok")
+
+        val descriptor: BluetoothGattDescriptor? = chNotify.getDescriptor(CCCD_UUID)
+        if (descriptor != null) {
+            descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+            val writeOk = gatt.writeDescriptor(descriptor)
+            Log.d("BLE_NOTIFY", "CCCD writeDescriptor: $writeOk")
+        } else {
+            Log.w("BLE_NOTIFY", "CCCD 디스크립터(0x2902) 없음")
+        }
+    }
+
+    // -------------------- BLE Write (LED / GATE 명령 전송) --------------------
+    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
+    private fun sendBleCommand(payload: String) {
+        val gatt = bluetoothGatt
+        if (gatt == null) {
+            toast("BLE가 아직 연결되지 않았어요.")
+            return
+        }
+
+        val service = gatt.getService(SERVICE_UUID)
+        if (service == null) {
+            Log.w("BLE_WRITE", "서비스를 찾지 못했습니다: $SERVICE_UUID")
+            toast("BLE 서비스 없음")
+            return
+        }
+
+        // WRITE 캐릭터리스틱으로 전송
+        val ch = service.getCharacteristic(CHAR_UUID_WRITE)
+        if (ch == null) {
+            Log.w("BLE_WRITE", "WRITE 특성을 찾지 못했습니다: $CHAR_UUID_WRITE")
+            toast("BLE WRITE 특성 없음")
+            return
+        }
+
+        ch.value = payload.toByteArray(Charsets.UTF_8)
+        val ok = gatt.writeCharacteristic(ch)
+        Log.d("BLE_WRITE", "writeCharacteristic($payload) = $ok")
+
+        if (!ok) {
+            toast("BLE 전송 실패")
+        } else {
+            chipRtt.text = "명령 전송: $payload"
         }
     }
 }

@@ -130,6 +130,8 @@
             </com.google.android.material.card.MaterialCardView>
 
 
+
+
 <!--
 
             &lt;!&ndash; 제어 카드 (프리셋 버튼 3개 한 줄) &ndash;&gt;
@@ -304,6 +306,152 @@
 
                 <!-- 구분선 -->
             </com.google.android.material.card.MaterialCardView>
+
+            <!-- 0) 실시간 상태 대시보드 -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardSensor"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                app:cardCornerRadius="16dp"
+                app:cardBackgroundColor="@android:color/white"
+                app:cardPreventCornerOverlap="true">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <!-- 제목 -->
+                    <TextView
+                        android:id="@+id/txtSensorTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="실시간 상태 대시보드"
+                        android:textStyle="bold"
+                        android:textSize="16sp" />
+
+                    <!-- 상태 배지 (정상 / 주의 / 위험) -->
+                    <TextView
+                        android:id="@+id/txtSensorLevel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:paddingHorizontal="10dp"
+                        android:paddingVertical="4dp"
+                        android:text="대기"
+                        android:textSize="12sp"
+                        android:textColor="@android:color/white" />
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="8dp" />
+
+                    <!-- 센서값 / 출력상태 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/txtFsrValue"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="FSR 값: -"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            android:id="@+id/txtLedState"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="LED: -"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            android:id="@+id/txtBuzzerState"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="부저: -"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            android:id="@+id/txtMotorState"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="모터: -"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+
+                    <!-- (옵션) 마지막 수신 시간 -->
+                    <TextView
+                        android:id="@+id/txtLastUpdated"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="마지막 수신: -"
+                        android:textSize="12sp"
+                        android:textColor="@color/navy_300" />
+
+                    <!-- 🔘 제어 버튼들 -->
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="12dp" />
+
+                    <!-- LED ON / OFF -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnLedOn"
+                            style="?attr/materialButtonOutlinedStyle"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="LED ON" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnLedOff"
+                            style="?attr/materialButtonOutlinedStyle"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="8dp"
+                            android:text="LED OFF" />
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="8dp" />
+
+                    <!-- GATE OPEN / CLOSE -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnGateOpen"
+                            style="?attr/materialButtonOutlinedStyle"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="GATE OPEN" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnGateClose"
+                            style="?attr/materialButtonOutlinedStyle"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="8dp"
+                            android:text="GATE CLOSE" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
 
 
 
