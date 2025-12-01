@@ -1,186 +1,129 @@
-/*******************************************************
- * ESP32-S3 FSR 센서 + BLE Notify + WiFi POST
- * (LED 상태 + JSON 포함, Render HTTPS 연동 + RTT 측정)
- *
- * - FSR 아날로그 값 읽기 (0~4095)
- * - BLE Notify로 안드로이드 앱에 센서값/LED 상태 전송
- * - WiFi(HTTPS)로 FastAPI 서버에 JSON POST
- * - POST 왕복시간(RTT) 시리얼에 출력
- *******************************************************/
+#include "HX711.h"
 
-#include <WiFi.h>
-#include <WiFiClientSecure.h>   // HTTPS(SSL/TLS) 통신용
-#include <HTTPClient.h>
+// =======================
+// 1) HX711 & 보정값 설정
+// =======================
 
-#include <BLEDevice.h>
-#include <BLEServer.h>
-#include <BLEUtils.h>
-#include <BLE2902.h>
+// HX711 핀 (ESP32에서 안전한 GPIO)
+const int LOADCELL_DOUT_PIN = 12;
+const int LOADCELL_SCK_PIN  = 13;
 
-// ======== WIFI SECTION ========
-// ▶ 사용할 Wi-Fi AP 정보
-const char* WIFI_SSID     = "U+Net97A4";
-const char* WIFI_PASSWORD = "5F8#4527HE";
+// HX711 객체
+HX711 scale;
 
-// ▶ Render에 올린 FastAPI 서버 주소 (HTTPS 엔드포인트)
-const char* SERVER_URL = "https://android-qdfu.onrender.com/sensor";
+// SCALE만 고정, OFFSET은 자동(tare)
+const float SET_SCALE  = 8.686992f;  // 캘리브레이션에서 얻은 값
 
-// ▶ HTTPS용 클라이언트 (전역으로 선언해서 재사용)
-WiFiClientSecure secureClient;
+// =======================
+// 2) 릴레이 핀 설정
+// =======================
 
-// ======== BLE SECTION ========
-// ▶ 앱과 통신할 BLE 서비스 / 캐릭터리스틱 UUID
-#define SERVICE_UUID        "12345678-1234-1234-1234-1234567890ab"
-#define CHARACTERISTIC_UUID "abcd1234-1234-5678-9999-abcdef123456"
+const int IN1 = 32;   // Extend 1
+const int IN2 = 33;   // Extend 2
+const int IN3 = 34;   // Retract 1
+const int IN4 = 35;   // Retract 2
 
-// ▶ 센서값을 Notify로 쏴줄 캐릭터리스틱 포인터
-BLECharacteristic* pCharacteristic;
+// =======================
+// 3) 알고리즘 파라미터
+// =======================
 
-// ======== SENSOR SECTION ========
-// ⚠ 실제로 FSR 센서를 연결한 ADC 핀 번호로 수정해야 함
-//    예: GPIO4면 4, GPIO34면 34 (S3에서 ADC 가능한 핀 확인 필수)
-const int SENSOR_PIN = 1;
+// 임계값 (g 단위)
+const float THRESHOLD = 15000.0f;   // 현장에서 조정
 
-// ▶ 임계값: 이 값보다 크면 LED 상태 1로 보고 서버에 전송
-const int THRESHOLD  = 700;
+// 샘플 개수 (홀수 권장)
+const int NUM_SAMPLES = 9;
 
+// =======================
+// 4) 필터 함수 (중간값 필터)
+// =======================
 
-// ======== WIFI 연결 함수 ========
-// Wi-Fi가 끊겼을 때도 재사용할 수 있게 분리
-void connectWiFi() {
-  Serial.println("WiFi 연결 중...");
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-
-  // Wi-Fi 연결될 때까지 반복
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(400);
-    Serial.print(".");
+float medianFilter(float arr[], int n) {
+  for (int i = 0; i < n - 1; i++) {
+    for (int j = i + 1; j < n; j++) {
+      if (arr[j] < arr[i]) {
+        float t = arr[i];
+        arr[i] = arr[j];
+        arr[j] = t;
+      }
+    }
   }
-
-  Serial.println("\nWiFi 연결 완료!");
-  Serial.print("IP 주소: ");
-  Serial.println(WiFi.localIP());
-
-  // ⚠ 실습용: 서버 인증서 검증을 끄고 HTTPS 허용
-  //    (운영 환경에서는 실제 인증서 검증을 해야 안전함)
-  secureClient.setInsecure();
+  return arr[n / 2];
 }
 
+// =======================
+// 5) 셋업
+// =======================
 
-// ======== 서버로 POST 보내는 함수 ========
-// val  : FSR 센서 원시값 (0~4095)
-// led  : LED 상태 (0 / 1)
-void postToServer(int val, int led) {
-  // 1) Wi-Fi 연결 상태 체크
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("⚠ WiFi 끊김 → 재연결 시도");
-    connectWiFi();
-  }
-
-  HTTPClient http;
-
-  // 2) HTTPS + 커스텀 WiFiClientSecure로 접속 준비
-  if (!http.begin(secureClient, SERVER_URL)) {
-    Serial.println("http.begin 실패 (URL 또는 클라이언트 문제)");
-    return;
-  }
-
-  // 3) HTTP 헤더 설정 (JSON)
-  http.addHeader("Content-Type", "application/json");
-
-  // 4) 전송할 JSON 바디 구성
-  //    예: {"device_id":"A-10","value":123,"led":1}
-  String json = "{";
-  json += "\"device_id\":\"A-10\",";         // 바리케이드/디바이스 ID
-  json += "\"value\":" + String(val) + ",";  // 센서값
-  json += "\"led\":"   + String(led);        // LED 상태
-  json += "}";
-
-  Serial.print("➡ 서버 POST: ");
-  Serial.println(json);
-
-  // 5) 여기서부터 RTT(왕복 지연시간) 측정
-  unsigned long t0 = millis();        // POST 직전 시간
-  int code = http.POST(json);         // 실제 HTTP POST 요청
-  unsigned long t1 = millis();        // 응답 받은 직후 시간
-  unsigned long rtt = t1 - t0;        // 왕복 시간(ms)
-
-  // 6) 응답 코드 + RTT 출력
-  Serial.print("⬅ 서버 응답 코드: ");
-  Serial.print(code);
-  Serial.print(" / ESP→서버 RTT: ");
-  Serial.print(rtt);
-  Serial.println(" ms");
-
-  // 7) 연결 종료
-  http.end();
-}
-
-
-// ======== SETUP ========
 void setup() {
   Serial.begin(115200);
-  delay(800);   // 시리얼 초기화 대기
 
-  // 1) Wi-Fi 연결 시도
-  connectWiFi();
+  // HX711 초기화
+  scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
+  scale.set_scale(SET_SCALE);
 
-  // 2) BLE 초기화
-  BLEDevice::init("SmartFSR-A10");      // 앱에서 보이는 BLE 디바이스 이름
-  BLEServer* pServer = BLEDevice::createServer();
-  BLEService* pService = pServer->createService(SERVICE_UUID);
+  // ⚠ 전원 켰을 때 아무것도 안 올려놓은 상태에서 자동 OFFSET 계산
+  Serial.println("Tare... remove all weight");
+  delay(500);
+  scale.tare(10);   // 10회 평균으로 OFFSET 자동 계산
 
-  // ▶ 센서값 + LED 상태를 전달할 캐릭터리스틱 생성 (읽기 + Notify)
-  pCharacteristic = pService->createCharacteristic(
-      CHARACTERISTIC_UUID,
-      BLECharacteristic::PROPERTY_READ |
-      BLECharacteristic::PROPERTY_NOTIFY
-  );
+  long offsetNow = scale.get_offset();
+  Serial.print("OFFSET(auto) = ");
+  Serial.println(offsetNow);
 
-  // ▶ Notify를 받기 위한 CCCD 디스크립터 추가
-  pCharacteristic->addDescriptor(new BLE2902());
+  // 릴레이 출력 설정
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+  pinMode(IN3, OUTPUT);
+  pinMode(IN4, OUTPUT);
 
-  // ▶ 서비스 시작 + 광고 시작
-  pService->start();
-  BLEDevice::startAdvertising();
+  // 기본 릴레이 상태 (OFF)
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, HIGH);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, HIGH);
 
-  Serial.println("BLE Advertising 시작!");
+  Serial.println("Loadcell + Median Filter + Relay ready.");
 }
 
-
-// ======== LOOP ========
-// ▶ 마지막으로 서버/앱으로 보낸 시각 저장 (ms)
-unsigned long lastSend = 0;
+// =======================
+// 6) 메인 루프
+// =======================
 
 void loop() {
-  unsigned long now = millis();
+  float samples[NUM_SAMPLES];
 
-  // ★ 10초마다 한 번씩 센서 읽고, BLE + 서버 전송
-  //    → 더 자주 보내고 싶으면 1000(1초), 2000(2초) 등으로 줄이면 됨
-  if (now - lastSend >= 1000) {   // 1000ms = 1초
-    lastSend = now;
-
-    // 1) FSR 센서값 읽기 (0~4095)
-    int val = analogRead(SENSOR_PIN);
-
-    // 2) 임계값 기준 LED 상태 결정 (0 or 1)
-    int ledState = (val > THRESHOLD) ? 1 : 0;
-
-    // 3) 시리얼로 현재 상태 출력
-    Serial.print("FSR 센서값: ");
-    Serial.print(val);
-    Serial.print(" / LED: ");
-    Serial.println(ledState);
-
-    // 4) BLE Notify로 앱에 센서값 전송
-    //    포맷: "센서값 \t LED상태" (예: "1234\t1")
-    String msg = String(val) + "\t" + String(ledState);
-    pCharacteristic->setValue(msg.c_str());
-    pCharacteristic->notify();
-
-    // 5) Wi-Fi + HTTPS로 서버에 JSON 전송 + RTT 측정
-    postToServer(val, ledState);
+  // 중간값 필터용 샘플 여러 번 읽기
+  for (int i = 0; i < NUM_SAMPLES; i++) {
+    samples[i] = scale.get_units(5);   // 내부 평균 5번 후 값
+    delay(30);
   }
 
-  // 외에는 특별한 작업 없음 → loop()가 빠르게 돌면서 타이밍만 체크
+  float med = medianFilter(samples, NUM_SAMPLES);
+
+  Serial.print("Weight (median): ");
+  Serial.print(med, 2);
+  Serial.println(" g");
+
+  // ====== 제어 로직 ======
+
+  // 과부하 상태 → 구조 게이트 EXTEND
+  if (med > THRESHOLD) {
+    Serial.println("⚠️ Over Pressure → Actuator EXTEND");
+
+    digitalWrite(IN1, HIGH);
+    digitalWrite(IN2, LOW);
+    digitalWrite(IN3, HIGH);
+    digitalWrite(IN4, LOW);
+  }
+  // 정상 상태 → 구조 게이트 RETRACT
+  else {
+    Serial.println("Normal → Actuator RETRACT");
+
+    digitalWrite(IN1, LOW);
+    digitalWrite(IN2, HIGH);
+    digitalWrite(IN3, LOW);
+    digitalWrite(IN4, HIGH);
+  }
+
+  delay(200);
 }
