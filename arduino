@@ -18,10 +18,10 @@ const float SET_SCALE  = 8.686992f;  // 캘리브레이션에서 얻은 값
 // 2) 릴레이 핀 설정
 // =======================
 
-const int IN1 = 32;   // Extend 1
-const int IN2 = 33;   // Extend 2
-const int IN3 = 34;   // Retract 1
-const int IN4 = 35;   // Retract 2
+const int IN1 = 25;   // Extend 1
+const int IN2 = 26;   // Extend 2
+const int IN3 = 27;   // Retract 1
+const int IN4 = 14;   // Retract 2
 
 // =======================
 // 3) 알고리즘 파라미터
