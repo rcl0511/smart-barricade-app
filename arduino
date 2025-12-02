@@ -18,19 +18,9 @@
 #include <BLE2902.h>
 
 // ======== WIFI SECTION ========
-// ▶ 사용할 Wi-Fi AP 정보 (3개)
-
-// AP1
-const char* WIFI_SSID_1     = "U+Net97A4";
-const char* WIFI_PASSWORD_1 = "5F8#4527HE";
-
-// AP2
-const char* WIFI_SSID_2     = "SMU";
-const char* WIFI_PASSWORD_2 = "01081070192";
-
-// AP3
-const char* WIFI_SSID_3     = "0192";
-const char* WIFI_PASSWORD_3 = "rcl0511";
+// ▶ 사용할 Wi-Fi AP 정보
+const char* WIFI_SSID     = "U+Net97A4";
+const char* WIFI_PASSWORD = "5F8#4527HE";
 
 // ▶ Render에 올린 FastAPI 서버 주소 (HTTPS 엔드포인트)
 const char* SERVER_URL = "https://android-qdfu.onrender.com/sensor";
@@ -44,7 +34,7 @@ WiFiClientSecure secureClient;
 #define CHARACTERISTIC_UUID "abcd1234-1234-5678-9999-abcdef123456"
 
 // ▶ 센서값을 Notify로 쏴줄 캐릭터리스틱 포인터
-BLECharacteristic* pCharacteristic = nullptr;
+BLECharacteristic* pCharacteristic;
 
 // ======== SENSOR SECTION ========
 // ⚠ 실제로 FSR 센서를 연결한 ADC 핀 번호로 수정해야 함
@@ -56,44 +46,24 @@ const int THRESHOLD  = 700;
 
 
 // ======== WIFI 연결 함수 ========
-// 3개의 AP를 순서대로 시도해서, 연결되면 바로 리턴
+// Wi-Fi가 끊겼을 때도 재사용할 수 있게 분리
 void connectWiFi() {
-  const char* ssids[]  = { WIFI_SSID_1, WIFI_SSID_2, WIFI_SSID_3 };
-  const char* passes[] = { WIFI_PASSWORD_1, WIFI_PASSWORD_2, WIFI_PASSWORD_3 };
-  const int   apCount  = 3;
+  Serial.println("WiFi 연결 중...");
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
-  for (int i = 0; i < apCount; i++) {
-    Serial.println();
-    Serial.print("📶 WiFi 연결 시도 (AP");
-    Serial.print(i + 1);
-    Serial.print("): ");
-    Serial.println(ssids[i]);
-
-    WiFi.begin(ssids[i], passes[i]);
-
-    unsigned long start = millis();
-    // 각 AP마다 최대 8초 정도 시도
-    while (WiFi.status() != WL_CONNECTED && millis() - start < 8000) {
-      delay(400);
-      Serial.print(".");
-    }
-
-    if (WiFi.status() == WL_CONNECTED) {
-      Serial.println("\n✅ WiFi 연결 완료!");
-      Serial.print("연결된 SSID: ");
-      Serial.println(ssids[i]);
-      Serial.print("IP 주소: ");
-      Serial.println(WiFi.localIP());
-
-      // ⚠ 실습용: 서버 인증서 검증을 끄고 HTTPS 허용
-      secureClient.setInsecure();
-      return;
-    }
-
-    Serial.println("\n⚠ 이 AP 연결 실패 → 다음 AP 시도");
+  // Wi-Fi 연결될 때까지 반복
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(400);
+    Serial.print(".");
   }
 
-  Serial.println("❌ 모든 AP 연결 실패 (WiFi 미연결 상태)");
+  Serial.println("\nWiFi 연결 완료!");
+  Serial.print("IP 주소: ");
+  Serial.println(WiFi.localIP());
+
+  // ⚠ 실습용: 서버 인증서 검증을 끄고 HTTPS 허용
+  //    (운영 환경에서는 실제 인증서 검증을 해야 안전함)
+  secureClient.setInsecure();
 }
 
 
@@ -105,12 +75,6 @@ void postToServer(int val, int led) {
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("⚠ WiFi 끊김 → 재연결 시도");
     connectWiFi();
-  }
-
-  // 그래도 안 붙었으면 포기
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("❌ WiFi 미연결 → POST 스킵");
-    return;
   }
 
   HTTPClient http;
@@ -158,7 +122,7 @@ void setup() {
   Serial.begin(115200);
   delay(800);   // 시리얼 초기화 대기
 
-  // 1) Wi-Fi 연결 시도 (3개 AP 순차 시도)
+  // 1) Wi-Fi 연결 시도
   connectWiFi();
 
   // 2) BLE 초기화
@@ -191,7 +155,8 @@ unsigned long lastSend = 0;
 void loop() {
   unsigned long now = millis();
 
-  // ★ 1초마다 한 번씩 센서 읽고, BLE + 서버 전송
+  // ★ 10초마다 한 번씩 센서 읽고, BLE + 서버 전송
+  //    → 더 자주 보내고 싶으면 1000(1초), 2000(2초) 등으로 줄이면 됨
   if (now - lastSend >= 1000) {   // 1000ms = 1초
     lastSend = now;
 
@@ -210,10 +175,8 @@ void loop() {
     // 4) BLE Notify로 앱에 센서값 전송
     //    포맷: "센서값 \t LED상태" (예: "1234\t1")
     String msg = String(val) + "\t" + String(ledState);
-    if (pCharacteristic != nullptr) {
-      pCharacteristic->setValue(msg.c_str());
-      pCharacteristic->notify();
-    }
+    pCharacteristic->setValue(msg.c_str());
+    pCharacteristic->notify();
 
     // 5) Wi-Fi + HTTPS로 서버에 JSON 전송 + RTT 측정
     postToServer(val, ledState);
