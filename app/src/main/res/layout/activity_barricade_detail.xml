@@ -167,7 +167,7 @@
                             android:layout_height="58dp"
                             android:layout_marginStart="8dp"
                             android:layout_weight="1"
-                            android:text="단계 개방"
+                            android:text="폐쇄"
                             android:textStyle="bold"
                             android:textColor="@android:color/black" />
                     </LinearLayout>

@@ -47,11 +47,10 @@ class AlarmAdapter(
     class VH(view: View) : RecyclerView.ViewHolder(view) {
         private val chipSeverity: Chip = view.findViewById(R.id.chipSeverity)
         private val txtTime: TextView = view.findViewById(R.id.txtTime)
-        private val txtSource: TextView = view.findViewById(R.id.txtSource)
+
         private val txtTitle: TextView = view.findViewById(R.id.txtTitle)
         private val txtMessage: TextView = view.findViewById(R.id.txtMessage)
-        private val btnAcknowledge: MaterialButton = view.findViewById(R.id.btnAcknowledge)
-        private val btnDetails: MaterialButton = view.findViewById(R.id.btnDetails)
+
         private val btnDismiss: ImageButton = view.findViewById(R.id.btnDismiss)
 
         fun bind(
@@ -74,14 +73,12 @@ class AlarmAdapter(
             chipSeverity.setTextColor(0xFFFFFFFF.toInt())
 
             txtTime.text = timeFmt.format(Date(item.timeMillis))
-            txtSource.isVisible = item.deviceId.isNotBlank()
-            txtSource.text = if (item.deviceId.isBlank()) "" else "#${item.deviceId}"
+
 
             txtTitle.text = item.title
             txtMessage.text = item.detail
 
-            btnAcknowledge.setOnClickListener { onAcknowledge(item) }
-            btnDetails.setOnClickListener { onDetails(item) }
+
             btnDismiss.setOnClickListener { onDismiss(item) }
         }
     }

@@ -68,18 +68,6 @@
                 app:layout_constraintTop_toTopOf="@id/chipSeverity"
                 app:layout_constraintVertical_bias="0.526" />
 
-            <TextView
-                android:id="@+id/txtSource"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
-                android:text="#A-10"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                android:textSize="25sp"
-                app:layout_constraintBaseline_toBaselineOf="@id/txtTime"
-                app:layout_constraintEnd_toStartOf="@id/btnDismiss"
-                app:layout_constraintHorizontal_bias="0.456"
-                app:layout_constraintStart_toEndOf="@id/txtTime" />
         </androidx.constraintlayout.widget.ConstraintLayout>
 
         <!-- 2행: 제목 -->
@@ -89,7 +77,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
             android:text="우측 패널 하중 임계 근접"
-            android:textSize="25sp"
+            android:textSize="15sp"
             android:textStyle="bold"
             android:textColor="@android:color/black" />
 
@@ -100,49 +88,10 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:text="현재 하중 150kg, 임계값 200kg, 2m 구간 밀집도 상승"
-            android:textSize="19sp"
+            android:textSize="15sp"
             android:textColor="?attr/colorOnSurfaceVariant" />
 
         <!-- 4행: 버튼 영역 -->
-        <LinearLayout
-            android:id="@+id/rowActions"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:gravity="center"
-            android:orientation="horizontal"
-            android:weightSum="2">
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnAcknowledge"
-                style="@style/Widget.Material3.Button.TonalButton"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:minHeight="40dp"
-                android:text="확인"
-                android:textColor="@android:color/white"
-                app:backgroundTint="#284c6d"
-                app:cornerRadius="50dp"
-                app:iconGravity="textStart"
-                app:iconPadding="6dp"
-                tools:ignore="TouchTargetSizeCheck" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnDetails"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:layout_weight="1"
-                android:minHeight="40dp"
-                android:text="자세히"
-                android:textColor="#284c6d"
-                app:cornerRadius="50dp"
-                app:strokeColor="#284c6d"
-                app:strokeWidth="1dp"
-                tools:ignore="TouchTargetSizeCheck" />
-        </LinearLayout>
 
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

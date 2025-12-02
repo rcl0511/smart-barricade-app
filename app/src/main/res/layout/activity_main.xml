@@ -50,7 +50,7 @@
                         android:textSize="16sp"
                         android:textStyle="bold" />
 
-                    <!-- 시리얼 입력 + 연결 버튼 -->
+                    <!-- 시리얼 + BLE 연결 + WiFi AP -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -68,19 +68,31 @@
                                 android:id="@+id/serialEdit"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:hint="시리얼 입력 (예: A-12)" />
+                                android:hint="시리얼 입력" />
+
                         </com.google.android.material.textfield.TextInputLayout>
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnConnect"
                             style="?attr/materialButtonTonalStyle"
                             android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
+                            android:layout_height="match_parent"
                             android:layout_marginStart="8dp"
                             app:backgroundTint="#3C339FFF"
                             app:cornerRadius="12dp"
-                            android:text="연결" />
+                            android:text="BLE 연결" />
+
+                        <!-- ▼ WiFi AP 버튼 NEW -->
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnWifiAp"
+                            style="?attr/materialButtonOutlinedStyle"
+                            android:layout_width="wrap_content"
+                            android:layout_height="match_parent"
+                            android:layout_marginStart="8dp"
+                            app:cornerRadius="12dp"
+                            android:text="Wi-Fi AP" />
                     </LinearLayout>
+
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnDisconnect"
@@ -128,98 +140,6 @@
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
-
-
-
-
-<!--
-
-            &lt;!&ndash; 제어 카드 (프리셋 버튼 3개 한 줄) &ndash;&gt;
-            &lt;!&ndash; 제어 카드 (프리셋 시뮬레이션 + 버튼 3개) &ndash;&gt;
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardPresets"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:layout_marginBottom="20dp"
-                app:cardCornerRadius="16dp"
-                app:strokeColor="?attr/colorOutlineVariant"
-                app:strokeWidth="1dp"
-                app:cardBackgroundColor="@android:color/transparent"
-                app:contentPadding="12dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:gravity="center_horizontal">
-
-                    &lt;!&ndash; 🔹 안내 텍스트 &ndash;&gt;
-                    <TextView
-                        android:id="@+id/txtPresetSim"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="🔹 시뮬레이션용 프리셋 알람 영역(테스트용) 🔹"
-                        android:textColor="@android:color/black"
-                        android:textSize="15sp"
-                        android:gravity="center"
-                        android:paddingVertical="8dp"
-                        android:background="#10CCCCCC" />
-
-                    &lt;!&ndash; 🔹 버튼 3개 한 줄 &ndash;&gt;
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center"
-                        android:weightSum="3"
-                        android:layout_marginTop="8dp">
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnPresetLoad"
-                            style="?attr/materialButtonTonalStyle"
-                            android:layout_width="0dp"
-                            android:layout_height="48dp"
-                            android:layout_weight="1"
-                            android:layout_marginHorizontal="4dp"
-                            android:text="하중 임계"
-                            android:textStyle="bold"
-                            android:textSize="12.5sp"
-                            app:backgroundTint="#3C339FFF"
-                            app:cornerRadius="12dp" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnPresetDensity"
-                            style="?attr/materialButtonTonalStyle"
-                            android:layout_width="0dp"
-                            android:layout_height="48dp"
-                            android:layout_weight="1"
-                            android:layout_marginHorizontal="4dp"
-                            android:text="밀집도 상승"
-                            android:textStyle="bold"
-                            android:textSize="12.5sp"
-                            app:backgroundTint="#3C339FFF"
-                            app:cornerRadius="12dp" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnPresetBattery"
-                            style="?attr/materialButtonTonalStyle"
-                            android:layout_width="0dp"
-                            android:layout_height="48dp"
-                            android:layout_weight="1"
-                            android:layout_marginHorizontal="4dp"
-                            android:text="배터리 부족"
-                            android:textStyle="bold"
-                            android:textSize="12.5sp"
-                            app:backgroundTint="#3C339FFF"
-                            app:cornerRadius="12dp" />
-                    </LinearLayout>
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
--->
-
-
 
             <!-- 바리케이드 정보 카드 -->
             <com.google.android.material.card.MaterialCardView
@@ -273,7 +193,6 @@
                         app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintTop_toBottomOf="@id/txtDeviceTitle" />
 
-
                     <TextView
                         android:id="@+id/txtSensorStatus"
                         android:layout_width="wrap_content"
@@ -296,25 +215,19 @@
                         app:layout_constraintEnd_toEndOf="parent"
                         tools:ignore="MissingClass"
                         android:layout_marginStart="0dp"
-                        android:layout_marginEnd="0dp"
-                        />
-
-
+                        android:layout_marginEnd="0dp" />
 
                 </androidx.constraintlayout.widget.ConstraintLayout>
-
-
-                <!-- 구분선 -->
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- 0) 실시간 상태 대시보드 -->
+            <!-- 0) 실시간 상태 대시보드 + 조작 패널 -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardSensor"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="12dp"
                 app:cardCornerRadius="16dp"
-                app:cardBackgroundColor="@android:color/white"
+
                 app:cardPreventCornerOverlap="true">
 
                 <LinearLayout
@@ -358,32 +271,32 @@
                             android:id="@+id/txtFsrValue"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="FSR 값: -"
+                            android:text="로드셀 값: -"
                             android:textSize="14sp" />
 
                         <TextView
                             android:id="@+id/txtLedState"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="LED: -"
+                            android:text="모드: -"
                             android:textSize="14sp" />
 
                         <TextView
                             android:id="@+id/txtBuzzerState"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="부저: -"
+                            android:text="과부하 상태: -"
                             android:textSize="14sp" />
 
                         <TextView
                             android:id="@+id/txtMotorState"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="모터: -"
+                            android:text="게이트: -"
                             android:textSize="14sp" />
                     </LinearLayout>
 
-                    <!-- (옵션) 마지막 수신 시간 -->
+                    <!-- 마지막 수신 시간 -->
                     <TextView
                         android:id="@+id/txtLastUpdated"
                         android:layout_width="match_parent"
@@ -393,66 +306,60 @@
                         android:textSize="12sp"
                         android:textColor="@color/navy_300" />
 
-                    <!-- 🔘 제어 버튼들 -->
+                    <!-- 구분선 -->
                     <View
                         android:layout_width="match_parent"
                         android:layout_height="12dp" />
 
-                    <!-- LED ON / OFF -->
+                    <!-- ▼ 조작 패널 제목 -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textStyle="bold"
+                        android:textSize="15sp" />
+
+                    <!-- GATE OPEN / CLOSE (긴급 개방 / 폐쇄) -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal">
+                        android:orientation="horizontal"
+                        android:layout_marginTop="8dp">
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnLedOn"
-                            style="?attr/materialButtonOutlinedStyle"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="LED ON" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnLedOff"
-                            style="?attr/materialButtonOutlinedStyle"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_marginStart="8dp"
-                            android:text="LED OFF" />
-                    </LinearLayout>
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="8dp" />
-
-                    <!-- GATE OPEN / CLOSE -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal">
-
+                        <!-- 긴급 개방(OPEN) 버튼: 빨간 색상 -->
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnGateOpen"
-                            style="?attr/materialButtonOutlinedStyle"
+                            style="?attr/materialButtonStyle"
                             android:layout_width="0dp"
-                            android:layout_height="wrap_content"
+                            android:layout_height="52dp"
                             android:layout_weight="1"
-                            android:text="GATE OPEN" />
+                            android:text="긴급 개방"
+                            android:textStyle="bold"
+                            android:textColor="@android:color/white"
+                            app:backgroundTint="#F44336" />
 
+                        <!-- 게이트 닫기(CLOSE) 버튼: 아웃라인 -->
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnGateClose"
                             style="?attr/materialButtonOutlinedStyle"
                             android:layout_width="0dp"
-                            android:layout_height="wrap_content"
+                            android:layout_height="52dp"
                             android:layout_weight="1"
                             android:layout_marginStart="8dp"
-                            android:text="GATE CLOSE" />
+                            android:text="폐쇄"
+                            android:textStyle="bold"
+                            android:textColor="@android:color/black" />
                     </LinearLayout>
+
+                    <!-- AUTO 제어 스위치 -->
+                    <com.google.android.material.materialswitch.MaterialSwitch
+                        android:id="@+id/switchAuto"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="임계치 초과시 자동제어 (10초 이상 EXTEND 유지)" />
                 </LinearLayout>
+
             </com.google.android.material.card.MaterialCardView>
-
-
 
 
 
@@ -464,9 +371,6 @@
                 android:layout_marginTop="12dp"
                 android:nestedScrollingEnabled="false"
                 tools:listitem="@layout/item_alarm" />
-
-            <!-- (옵션) 센서 요약 카드 - 이후 확장 -->
-
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
