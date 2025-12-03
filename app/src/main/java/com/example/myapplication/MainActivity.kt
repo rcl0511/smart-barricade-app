@@ -158,7 +158,6 @@ class MainActivity : AppCompatActivity() {
     // ---------- WiFi / HTTP 상태 폴링 ----------
     private val WIFI_AP_IP = "192.168.4.1"
     private val WIFI_STATUS_URL = "http://$WIFI_AP_IP/status"
-    private val WIFI_CMD_URL = "http://$WIFI_AP_IP/cmd"
     private var wifiStatusJob: Job? = null
     private val ENABLE_WIFI_STATUS_POLL = true   // 필요 없으면 false로 꺼도 됨
 
@@ -547,6 +546,9 @@ class MainActivity : AppCompatActivity() {
                         val w1 = json.optDouble("W1", 0.0).toFloat()
                         val w2 = json.optDouble("W2", 0.0).toFloat()
                         val w3 = json.optDouble("W3", 0.0).toFloat()
+                        val over1 = json.optInt("over1", 0) == 1
+                        val over2 = json.optInt("over2", 0) == 1
+                        val over3 = json.optInt("over3", 0) == 1
                         val overloaded = json.optInt("overloaded", 0) == 1
                         val autoMode = json.optInt("autoMode", 1) == 1
                         val actuatorExtended = json.optInt("actuatorState", 0) == 1
@@ -581,58 +583,6 @@ class MainActivity : AppCompatActivity() {
     private fun stopWifiStatusLoop() {
         wifiStatusJob?.cancel()
         wifiStatusJob = null
-    }
-
-    // 🔹 WiFi 모드에서 /cmd 호출
-    private fun sendWifiCmd(mode: String?, action: String?) {
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                val sb = StringBuilder(WIFI_CMD_URL)
-                var first = true
-                fun appendParam(key: String, value: String) {
-                    if (first) {
-                        sb.append("?")
-                        first = false
-                    } else {
-                        sb.append("&")
-                    }
-                    sb.append(key).append("=").append(value)
-                }
-
-                mode?.let { appendParam("mode", it) }
-                action?.let { appendParam("action", it) }
-
-                val url = URL(sb.toString())
-                val conn = (url.openConnection() as HttpURLConnection).apply {
-                    connectTimeout = 1000
-                    readTimeout = 1000
-                    requestMethod = "GET"
-                }
-
-                val code = conn.responseCode
-                val body = if (code == 200) {
-                    conn.inputStream.bufferedReader().use { it.readText() }
-                } else {
-                    null
-                }
-                conn.disconnect()
-
-                Log.d("WIFI_CMD", "HTTP $code, body=$body")
-
-                withContext(Dispatchers.Main) {
-                    if (code == 200) {
-                        chipRtt.text = "WiFi CMD 전송: mode=$mode, action=$action"
-                    } else {
-                        toast("WiFi CMD 실패: HTTP $code")
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("WIFI_CMD", "오류: ${e.message}", e)
-                withContext(Dispatchers.Main) {
-                    toast("WiFi CMD 오류: ${e.message}")
-                }
-            }
-        }
     }
 
     // 🔹 모드 전환 헬퍼: BLE 모드
@@ -867,58 +817,35 @@ class MainActivity : AppCompatActivity() {
 
         // 모드 스위치 → ESP32로 AUTO / MANUAL 전송
         switchAuto.setOnCheckedChangeListener { _, isChecked ->
-            if (currentMode == ConnectionMode.BLE) {
-                // ---- BLE 모드 ----
-                if (!hasBlePermissions()) {
-                    perm.requestBlePermissions()
-                    switchAuto.isChecked = !isChecked
-                    return@setOnCheckedChangeListener
-                }
+            if (!hasBlePermissions()) {
+                perm.requestBlePermissions()
+                switchAuto.isChecked = !isChecked
+                return@setOnCheckedChangeListener
+            }
 
-                if (isChecked) {
-                    sendBleCommand("MODE_AUTO")
-                    toast("AUTO 모드 전환 요청 (BLE)")
-                } else {
-                    sendBleCommand("MODE_MANUAL")
-                    toast("MANUAL 모드 전환 요청 (BLE)")
-                }
+            if (isChecked) {
+                sendBleCommand("MODE_AUTO")
+                toast("AUTO 모드 전환 요청")
             } else {
-                // ---- WiFi 모드 ----
-                val modeStr = if (isChecked) "AUTO" else "MANUAL"
-                sendWifiCmd(modeStr, null)
-                toast("모드 전환 요청 (WiFi: $modeStr)")
-                // 실제 상태는 /status 응답으로 다시 동기화됨
+                sendBleCommand("MODE_MANUAL")
+                toast("MANUAL 모드 전환 요청")
             }
         }
 
         // 게이트 제어 버튼
         btnGateOpen.setOnClickListener {
-            if (currentMode == ConnectionMode.BLE) {
-                if (hasBlePermissions()) {
-                    sendBleCommand("EXTEND")
-                    toast("게이트 오픈 요청 (BLE)")
-                } else {
-                    perm.requestBlePermissions()
-                }
+            if (hasBlePermissions()) {
+                sendBleCommand("EXTEND")
             } else {
-                // WiFi 모드: MANUAL + EXTEND
-                sendWifiCmd("MANUAL", "EXTEND")
-                toast("게이트 오픈 요청 (WiFi)")
+                perm.requestBlePermissions()
             }
         }
 
         btnGateClose.setOnClickListener {
-            if (currentMode == ConnectionMode.BLE) {
-                if (hasBlePermissions()) {
-                    sendBleCommand("RETRACT")
-                    toast("게이트 클로즈 요청 (BLE)")
-                } else {
-                    perm.requestBlePermissions()
-                }
+            if (hasBlePermissions()) {
+                sendBleCommand("RETRACT")
             } else {
-                // WiFi 모드: MANUAL + RETRACT
-                sendWifiCmd("MANUAL", "RETRACT")
-                toast("게이트 클로즈 요청 (WiFi)")
+                perm.requestBlePermissions()
             }
         }
 
