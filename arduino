@@ -1,186 +1,505 @@
 /*******************************************************
- * ESP32-S3 FSR 센서 + BLE Notify + WiFi POST
- * (LED 상태 + JSON 포함, Render HTTPS 연동 + RTT 측정)
+ * Smart Barricade - ESP32-S3 (빠른 반응 + WiFi AP 버전)
+ * HX711 로드셀(3개) + 릴레이 제어 + BLE 양방향 + WiFi AP
  *
- * - FSR 아날로그 값 읽기 (0~4095)
- * - BLE Notify로 안드로이드 앱에 센서값/LED 상태 전송
- * - WiFi(HTTPS)로 FastAPI 서버에 JSON POST
- * - POST 왕복시간(RTT) 시리얼에 출력
+ * (최종 수정: actuatorStop() 재추가 및 setModeManual() 로직 개선)
+ *
+ * - 현재는 로드셀 1번만 실제로 연결 (USE_LOADCELL2/3 = false)
+ * - 나중에 2, 3번 연결하면 플래그만 true로 바꾸면 확장 가능
+ *
+ * 기능 요약
+ * - HX711 로드셀 3개 구조 (지금은 1번만 사용)
+ * - 샘플 여러 번 읽어서 "총합"에 중간값 필터 적용
+ * - 오버웨이트 조건: 사용 중인 로드셀 중 하나라도 THRESHOLD 초과 → EXTEND
+ * - 한 번 오버웨이트 되면 이후 10초 동안 무조건 EXTEND 유지
+ * - BLE Notify:
+ * "W,W1,W2,W3,overloaded,autoMode,actuatorState"
+ * - WiFi AP + HTTP:
+ * /status → JSON 형식으로 W1/W2/W3 및 over1/2/3, overloaded 등 제공
+ * /cmd → 모드/동작 수동 제어 (AUTO/MANUAL + EXTEND/RETRACT/STOP)
+ *
+ * - 통신 정책
+ * ✔ BLE 연결되면 → WiFi AP 끔 (BLE 우선)
+ * ✔ WiFi 요청 들어오면 → BLE 강제 disconnect (WiFi 우선)
  *******************************************************/
 
-#include <WiFi.h>
-#include <WiFiClientSecure.h>   // HTTPS(SSL/TLS) 통신용
-#include <HTTPClient.h>
-
+#include <Arduino.h>
 #include <BLEDevice.h>
 #include <BLEServer.h>
 #include <BLEUtils.h>
 #include <BLE2902.h>
+#include "HX711.h"
 
-// ======== WIFI SECTION ========
-// ▶ 사용할 Wi-Fi AP 정보
-const char* WIFI_SSID     = "U+Net97A4";
-const char* WIFI_PASSWORD = "5F8#4527HE";
+// ===== WiFi / WebServer =====
+#include <WiFi.h>
+#include <WebServer.h>
 
-// ▶ Render에 올린 FastAPI 서버 주소 (HTTPS 엔드포인트)
-const char* SERVER_URL = "https://android-qdfu.onrender.com/sensor";
+// -----------------------------------------------------
+// 0) WiFi AP 설정
+// -----------------------------------------------------
+const char* AP_SSID = "SmartBarricade_AP";
+const char* AP_PASS = "12345678";
+WebServer server(80);
 
-// ▶ HTTPS용 클라이언트 (전역으로 선언해서 재사용)
-WiFiClientSecure secureClient;
+float g_lastW1 = 0.0f;
+float g_lastW2 = 0.0f;
+float g_lastW3 = 0.0f;
+bool g_over1 = false;
+bool g_over2 = false;
+bool g_over3 = false;
+bool g_overloaded = false;
+bool g_autoModeHttp = true;
+int g_actuatorState = 0; // 0: RETRACT (닫힘), 1: EXTEND (열림), -1: STOP (정지)
 
-// ======== BLE SECTION ========
-// ▶ 앱과 통신할 BLE 서비스 / 캐릭터리스틱 UUID
-#define SERVICE_UUID        "12345678-1234-1234-1234-1234567890ab"
-#define CHARACTERISTIC_UUID "abcd1234-1234-5678-9999-abcdef123456"
+// -----------------------------------------------------
+// 1) HX711 & 보정값 설정
+// -----------------------------------------------------
+const int LOADCELL1_DOUT_PIN = 12;
+const int LOADCELL1_SCK_PIN  = 13;
 
-// ▶ 센서값을 Notify로 쏴줄 캐릭터리스틱 포인터
-BLECharacteristic* pCharacteristic;
+const int LOADCELL2_DOUT_PIN = 4;
+const int LOADCELL2_SCK_PIN  = 5;
 
-// ======== SENSOR SECTION ========
-// ⚠ 실제로 FSR 센서를 연결한 ADC 핀 번호로 수정해야 함
-//    예: GPIO4면 4, GPIO34면 34 (S3에서 ADC 가능한 핀 확인 필수)
-const int SENSOR_PIN = 1;
+const int LOADCELL3_DOUT_PIN = 16;
+const int LOADCELL3_SCK_PIN  = 17;
 
-// ▶ 임계값: 이 값보다 크면 LED 상태 1로 보고 서버에 전송
-const int THRESHOLD  = 700;
+HX711 scale1, scale2, scale3;
 
+const float SET_SCALE1 = 8.686992f;
+const float SET_SCALE2 = 8.686992f;
+const float SET_SCALE3 = 8.686992f;
 
-// ======== WIFI 연결 함수 ========
-// Wi-Fi가 끊겼을 때도 재사용할 수 있게 분리
-void connectWiFi() {
-  Serial.println("WiFi 연결 중...");
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+const bool USE_LOADCELL1 = true;
+const bool USE_LOADCELL2 = false;
+const bool USE_LOADCELL3 = false;
 
-  // Wi-Fi 연결될 때까지 반복
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(400);
-    Serial.print(".");
-  }
+// -----------------------------------------------------
+// 2) 릴레이 핀 설정
+// -----------------------------------------------------
+const int IN1 = 33;
+const int IN2 = 26;
+const int IN3 = 27;
+const int IN4 = 14;
 
-  Serial.println("\nWiFi 연결 완료!");
-  Serial.print("IP 주소: ");
-  Serial.println(WiFi.localIP());
+#define RELAY_ACTIVE_LOW 1
+#if RELAY_ACTIVE_LOW
+const int RELAY_ON  = LOW;
+const int RELAY_OFF = HIGH;
+#else
+const int RELAY_ON  = HIGH;
+const int RELAY_OFF = LOW;
+#endif
 
-  // ⚠ 실습용: 서버 인증서 검증을 끄고 HTTPS 허용
-  //    (운영 환경에서는 실제 인증서 검증을 해야 안전함)
-  secureClient.setInsecure();
+// -----------------------------------------------------
+// 3) 알고리즘 파라미터
+// -----------------------------------------------------
+const float THRESHOLD = 10000.0f;
+const int NUM_SAMPLES = 5;
+const float ZERO_DEADZONE = 200.0f;
+
+// -----------------------------------------------------
+// 4) 상태 변수
+// -----------------------------------------------------
+int actuatorState = 0; // 0: RETRACT (닫힘), 1: EXTEND (열림), -1: STOP (정지)
+bool autoMode = true;
+const unsigned long EXTEND_HOLD_MS = 10UL * 1000UL;
+unsigned long extendHoldUntil = 0;
+
+void startAP();
+void actuatorStop();
+
+// =====================================================
+// 유틸 함수
+// =====================================================
+float medianFilter(float arr[], int n) {
+    for (int i = 0; i < n - 1; i++)
+        for (int j = i + 1; j < n; j++)
+            if (arr[j] < arr[i]) {
+                float t = arr[i];
+                arr[i] = arr[j];
+                arr[j] = t;
+            }
+    return arr[n / 2];
+}
+
+float applyDeadzone(float v) {
+    if (v > -ZERO_DEADZONE && v < ZERO_DEADZONE) return 0.0f;
+    return v;
+}
+
+void printRelayState(const char* label) {
+    Serial.print(label);
+    Serial.print(" IN1="); Serial.print(digitalRead(IN1));
+    Serial.print(" IN2="); Serial.print(digitalRead(IN2));
+    Serial.print(" IN3="); Serial.print(digitalRead(IN3));
+    Serial.print(" IN4="); Serial.println(digitalRead(IN4));
+}
+
+void setModeAuto(const char* reason) {
+    if (!autoMode) Serial.printf("### MODE -> AUTO (%s)\n", reason);
+    autoMode = true;
+    g_autoModeHttp = true;
+    extendHoldUntil = 0;
+}
+
+// 수정된 setModeManual: doStop=true일 때 RETRACT 상태로 전환
+void setModeManual(const char* reason, bool doStop) {
+    if (autoMode) Serial.printf("### MODE -> MANUAL (%s)\n", reason);
+    autoMode = false;
+    g_autoModeHttp = false;
+    extendHoldUntil = 0;
+
+    if (doStop) {
+        // 기존: STOP (ALL OFF)
+        // 수정: RETRACT (IN1, IN3 ON) 상태로 전환하여 기본 상태 유지
+        actuatorStop(); // 일단 정지하여 모터 안전 보장
+        
+        digitalWrite(IN1, RELAY_ON);
+        digitalWrite(IN3, RELAY_ON);
+
+        actuatorState = 0; // RETRACT 상태
+        g_actuatorState = 0;
+        printRelayState("▶ Actuator: RETRACT (Manual Mode Start)");
+    }
+}
+
+// =====================================================
+// 릴레이 제어 (actuatorStop() 재추가)
+// =====================================================
+
+void actuatorStop() {
+    if (actuatorState == -1) return; // 이미 정지 상태라면 리턴
+
+    actuatorState = -1;
+    g_actuatorState = -1;
+    
+    // 모든 릴레이를 OFF하여 모터 정지
+    digitalWrite(IN1, RELAY_OFF);
+    digitalWrite(IN2, RELAY_OFF);
+    digitalWrite(IN3, RELAY_OFF);
+    digitalWrite(IN4, RELAY_OFF);
+
+    printRelayState("▶ Actuator: STOP");
 }
 
 
-// ======== 서버로 POST 보내는 함수 ========
-// val  : FSR 센서 원시값 (0~4095)
-// led  : LED 상태 (0 / 1)
-void postToServer(int val, int led) {
-  // 1) Wi-Fi 연결 상태 체크
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("⚠ WiFi 끊김 → 재연결 시도");
-    connectWiFi();
-  }
+void actuatorRetract() {
+    // 이미 RETRACT(0) 상태라면 리턴하여 불필요한 릴레이 동작을 막음
+    if (actuatorState == 0) return; 
+    
+    actuatorStop(); // 동작 전 반드시 정지
 
-  HTTPClient http;
+    actuatorState = 0;
+    g_actuatorState = 0;
 
-  // 2) HTTPS + 커스텀 WiFiClientSecure로 접속 준비
-  if (!http.begin(secureClient, SERVER_URL)) {
-    Serial.println("http.begin 실패 (URL 또는 클라이언트 문제)");
-    return;
-  }
+    // RETRACT (닫힘) 시작
+    digitalWrite(IN1, RELAY_ON);
+    digitalWrite(IN3, RELAY_ON);
 
-  // 3) HTTP 헤더 설정 (JSON)
-  http.addHeader("Content-Type", "application/json");
-
-  // 4) 전송할 JSON 바디 구성
-  //    예: {"device_id":"A-10","value":123,"led":1}
-  String json = "{";
-  json += "\"device_id\":\"A-10\",";         // 바리케이드/디바이스 ID
-  json += "\"value\":" + String(val) + ",";  // 센서값
-  json += "\"led\":"   + String(led);        // LED 상태
-  json += "}";
-
-  Serial.print("➡ 서버 POST: ");
-  Serial.println(json);
-
-  // 5) 여기서부터 RTT(왕복 지연시간) 측정
-  unsigned long t0 = millis();        // POST 직전 시간
-  int code = http.POST(json);         // 실제 HTTP POST 요청
-  unsigned long t1 = millis();        // 응답 받은 직후 시간
-  unsigned long rtt = t1 - t0;        // 왕복 시간(ms)
-
-  // 6) 응답 코드 + RTT 출력
-  Serial.print("⬅ 서버 응답 코드: ");
-  Serial.print(code);
-  Serial.print(" / ESP→서버 RTT: ");
-  Serial.print(rtt);
-  Serial.println(" ms");
-
-  // 7) 연결 종료
-  http.end();
+    printRelayState("▶ Actuator: close (1,3 ON)");
 }
 
+void actuatorExtend() {
+    // 이미 EXTEND(1) 상태라면 리턴하여 불필요한 릴레이 동작을 막음
+    if (actuatorState == 1) return;
+    
+    actuatorStop(); // 동작 전 반드시 정지
+    
+    actuatorState = 1;
+    g_actuatorState = 1;
 
-// ======== SETUP ========
+    // EXTEND (열림) 시작
+    digitalWrite(IN2, RELAY_ON);
+    digitalWrite(IN4, RELAY_ON);
+
+    printRelayState("▶ Actuator: open (2,4 ON)");
+}
+
+// =====================================================
+// BLE 관련
+// =====================================================
+#define SERVICE_UUID      "12345678-1234-1234-1234-1234567890ab"
+#define CHAR_UUID_NOTIFY  "abcd1234-1234-5678-9999-abcdef123456"
+#define CHAR_UUID_WRITE   "abcd0002-1234-5678-9999-abcdef123456"
+
+BLEServer* pServer = nullptr;
+BLECharacteristic* pNotifyChar = nullptr;
+BLEAdvertising* pAdvertising = nullptr;
+
+bool deviceConnected = false;
+bool oldDeviceConnected = false;
+
+class MyServerCallbacks : public BLEServerCallbacks {
+    void onConnect(BLEServer*) override {
+        deviceConnected = true;
+        Serial.println("BLE Central 연결됨");
+        WiFi.softAPdisconnect(true);
+    }
+    void onDisconnect(BLEServer*) override {
+        deviceConnected = false;
+        Serial.println("BLE Central 해제 → AP 재시작");
+        startAP();
+    }
+};
+
+// 수정: AUTO 모드에서 Action 명령 차단 및 STOP 명령 actuatorStop() 사용
+class CmdCallback : public BLECharacteristicCallbacks {
+    void onWrite(BLECharacteristic* pChar) override {
+        String cmd = String(pChar->getValue().c_str());
+        cmd.trim(); cmd.toUpperCase();
+
+        Serial.printf("BLE CMD: [%s]\n", cmd.c_str());
+
+        if (cmd == "MODE_AUTO") setModeAuto("BLE");
+        else if (cmd == "MODE_MANUAL") setModeManual("BLE", true);
+        // MANUAL 모드일 때만 액추에이터 제어 허용
+        else if (!autoMode && cmd == "EXTEND") { setModeManual("BLE EXTEND", false); actuatorExtend(); }
+        else if (!autoMode && cmd == "RETRACT") { setModeManual("BLE RETRACT", false); actuatorRetract(); }
+        else if (!autoMode && cmd == "STOP") { 
+            setModeManual("BLE STOP", false); 
+            actuatorStop(); // actuatorStop() 함수 사용
+        }
+        else if (autoMode && (cmd == "EXTEND" || cmd == "RETRACT" || cmd == "STOP")) {
+            Serial.println("❌ BLE CMD: AUTO 모드에서 액추에이터 제어 무시됨.");
+        }
+    }
+};
+
+void disconnectBleForWifi() {
+    if (deviceConnected && pServer) {
+        Serial.println("[HTTP] BLE Disconnect");
+        pServer->disconnect(0);
+    }
+}
+
+// =====================================================
+// HTTP 핸들러 (handleCmd 수정됨: actuatorStop() 사용)
+// =====================================================
+void handleStatus() {
+    disconnectBleForWifi(); 
+    String json = "{";
+    json += "\"W1\":" + String(g_lastW1, 1) + ",";
+    json += "\"W2\":" + String(g_lastW2, 1) + ",";
+    json += "\"W3\":" + String(g_lastW3, 1) + ",";
+    json += "\"over1\":" + String(g_over1) + ",";
+    json += "\"over2\":" + String(g_over2) + ",";
+    json += "\"over3\":" + String(g_over3) + ",";
+    json += "\"overloaded\":" + String(g_overloaded) + ",";
+    json += "\"autoMode\":" + String(g_autoModeHttp) + ",";
+    json += "\"actuatorState\":" + String(g_actuatorState);
+    json += "}";
+    server.send(200, "application/json", json);
+}
+
+void handleCmd() {
+    disconnectBleForWifi();
+
+    String mode    = server.arg("mode");    mode.toUpperCase();
+    String action = server.arg("action"); action.toUpperCase();
+
+    // 1. 모드 변경 처리 (mode 인자가 있을 때만 실행)
+    if (mode == "AUTO") setModeAuto("HTTP /cmd");
+    else if (mode == "MANUAL") setModeManual("HTTP /cmd", true);
+
+    // 2. 액추에이터 동작 처리 (action 인자가 있을 때만 실행)
+    if (action.length() > 0) {
+        if (!autoMode) { // MANUAL 모드일 때만 액추에이터 제어 허용
+            setModeManual("HTTP ACTION", false); // MANUAL 모드 유지 (doStop=false)
+            if (action == "EXTEND") actuatorExtend();
+            else if (action == "RETRACT") actuatorRetract();
+            else if (action == "STOP") actuatorStop(); // actuatorStop() 함수 사용
+        } else {
+            Serial.println("❌ HTTP CMD: AUTO 모드에서 액추에이터 제어 무시됨.");
+        }
+    }
+
+    String json = "{";
+    json += "\"ok\":1,";
+    json += "\"mode\":\"" + String(autoMode ? "AUTO" : "MANUAL") + "\",";
+    json += "\"action\":\"" + action + "\",";
+    json += "\"actuatorState\":" + String(g_actuatorState);
+    json += "}";
+
+    server.send(200, "application/json", json);
+}
+
+void startWebServer() {
+    server.on("/status", HTTP_ANY, handleStatus);
+    server.on("/cmd",    HTTP_ANY, handleCmd);
+    server.begin();
+    Serial.println("🌐 WebServer 시작 (/status, /cmd)");
+}
+
+// =====================================================
+// WiFi AP
+// =====================================================
+void startAP() {
+    Serial.println("📡 AP 모드 시작…");
+    WiFi.mode(WIFI_AP);
+    bool ok = WiFi.softAP(AP_SSID, AP_PASS);
+
+    if (ok) {
+        Serial.println("✅ AP 활성화됨");
+        Serial.printf("SSID: %s\nPASS: %s\n", AP_SSID, AP_PASS);
+        Serial.print("AP IP: "); Serial.println(WiFi.softAPIP());
+    } else Serial.println("❌ AP 시작 실패");
+}
+
+// =====================================================
+// SETUP
+// =====================================================
 void setup() {
-  Serial.begin(115200);
-  delay(800);   // 시리얼 초기화 대기
+    Serial.begin(115200);
+    delay(1000);
 
-  // 1) Wi-Fi 연결 시도
-  connectWiFi();
+    pinMode(IN1, OUTPUT); pinMode(IN2, OUTPUT);
+    pinMode(IN3, OUTPUT); pinMode(IN4, OUTPUT);
 
-  // 2) BLE 초기화
-  BLEDevice::init("SmartFSR-A10");      // 앱에서 보이는 BLE 디바이스 이름
-  BLEServer* pServer = BLEDevice::createServer();
-  BLEService* pService = pServer->createService(SERVICE_UUID);
+    // 초기 상태: RETRACT (IN1, IN3 ON) 상태로 시작 (기본 상태)
+    digitalWrite(IN2, RELAY_OFF);
+    digitalWrite(IN4, RELAY_OFF);
+    digitalWrite(IN1, RELAY_ON);
+    digitalWrite(IN3, RELAY_ON);
+    
+    actuatorState = 0; // 초기 상태를 RETRACT(0)로 설정
 
-  // ▶ 센서값 + LED 상태를 전달할 캐릭터리스틱 생성 (읽기 + Notify)
-  pCharacteristic = pService->createCharacteristic(
-      CHARACTERISTIC_UUID,
-      BLECharacteristic::PROPERTY_READ |
-      BLECharacteristic::PROPERTY_NOTIFY
-  );
+    printRelayState("초기 RETRACT (1,3 ON)");
 
-  // ▶ Notify를 받기 위한 CCCD 디스크립터 추가
-  pCharacteristic->addDescriptor(new BLE2902());
+    if (USE_LOADCELL1) { scale1.begin(LOADCELL1_DOUT_PIN, LOADCELL1_SCK_PIN); scale1.set_scale(SET_SCALE1); }
+    if (USE_LOADCELL2) { scale2.begin(LOADCELL2_DOUT_PIN, LOADCELL2_SCK_PIN); scale2.set_scale(SET_SCALE2); }
+    if (USE_LOADCELL3) { scale3.begin(LOADCELL3_DOUT_PIN, LOADCELL3_SCK_PIN); scale3.set_scale(SET_SCALE3); }
 
-  // ▶ 서비스 시작 + 광고 시작
-  pService->start();
-  BLEDevice::startAdvertising();
+    Serial.println("Tare...");
+    delay(500);
+    if (USE_LOADCELL1) scale1.tare(10);
+    if (USE_LOADCELL2) scale2.tare(10);
+    if (USE_LOADCELL3) scale3.tare(10);
 
-  Serial.println("BLE Advertising 시작!");
+    // BLE 초기화
+    BLEDevice::init("SmartLoadcell-A10");
+    pServer = BLEDevice::createServer();
+    pServer->setCallbacks(new MyServerCallbacks());
+
+    BLEService* pService = pServer->createService(SERVICE_UUID);
+
+    pNotifyChar = pService->createCharacteristic(
+        CHAR_UUID_NOTIFY,
+        BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY
+    );
+    pNotifyChar->addDescriptor(new BLE2902()); // CCCD 디스크립터
+
+    BLECharacteristic* pWriteChar =
+        pService->createCharacteristic(CHAR_UUID_WRITE, BLECharacteristic::PROPERTY_WRITE);
+    pWriteChar->setCallbacks(new CmdCallback());
+
+    pService->start();
+    pAdvertising = BLEDevice::getAdvertising();
+    pAdvertising->addServiceUUID(SERVICE_UUID);
+    BLEDevice::startAdvertising();
+
+    startAP();
+    startWebServer();
 }
 
-
-// ======== LOOP ========
-// ▶ 마지막으로 서버/앱으로 보낸 시각 저장 (ms)
-unsigned long lastSend = 0;
-
+// =====================================================
+// LOOP
+// =====================================================
 void loop() {
-  unsigned long now = millis();
+    server.handleClient();
 
-  // ★ 10초마다 한 번씩 센서 읽고, BLE + 서버 전송
-  //    → 더 자주 보내고 싶으면 1000(1초), 2000(2초) 등으로 줄이면 됨
-  if (now - lastSend >= 1000) {   // 1000ms = 1초
-    lastSend = now;
+    float samples[NUM_SAMPLES];
+    float lastW1 = 0, lastW2 = 0, lastW3 = 0;
 
-    // 1) FSR 센서값 읽기 (0~4095)
-    int val = analogRead(SENSOR_PIN);
+    // 5개의 샘플을 읽어서 중앙값 필터링 준비
+    for (int i = 0; i < NUM_SAMPLES; i++) {
+        float w1 = USE_LOADCELL1 ? scale1.get_units(1) : 0;
+        float w2 = USE_LOADCELL2 ? scale2.get_units(1) : 0;
+        float w3 = USE_LOADCELL3 ? scale3.get_units(1) : 0;
 
-    // 2) 임계값 기준 LED 상태 결정 (0 or 1)
-    int ledState = (val > THRESHOLD) ? 1 : 0;
+        lastW1 = w1; lastW2 = w2; lastW3 = w3;
+        samples[i] = w1 + w2 + w3;
+        delay(2);
+    }
 
-    // 3) 시리얼로 현재 상태 출력
-    Serial.print("FSR 센서값: ");
-    Serial.print(val);
-    Serial.print(" / LED: ");
-    Serial.println(ledState);
+    float medTotal = applyDeadzone(medianFilter(samples, NUM_SAMPLES));
+    lastW1 = applyDeadzone(lastW1);
+    lastW2 = applyDeadzone(lastW2);
+    lastW3 = applyDeadzone(lastW3);
 
-    // 4) BLE Notify로 앱에 센서값 전송
-    //    포맷: "센서값 \t LED상태" (예: "1234\t1")
-    String msg = String(val) + "\t" + String(ledState);
-    pCharacteristic->setValue(msg.c_str());
-    pCharacteristic->notify();
+    unsigned long nowMs = millis();
 
-    // 5) Wi-Fi + HTTPS로 서버에 JSON 전송 + RTT 측정
-    postToServer(val, ledState);
-  }
+    bool over1 = USE_LOADCELL1 && (lastW1 > THRESHOLD);
+    bool over2 = USE_LOADCELL2 && (lastW2 > THRESHOLD);
+    bool over3 = USE_LOADCELL3 && (lastW3 > THRESHOLD);
 
-  // 외에는 특별한 작업 없음 → loop()가 빠르게 돌면서 타이밍만 체크
+    bool overNow = (over1 || over2 || over3);
+
+    // 전역 변수 업데이트 (HTTP /status용)
+    g_lastW1 = lastW1;
+    g_lastW2 = lastW2;
+    g_lastW3 = lastW3;
+    g_over1 = over1;
+    g_over2 = over2;
+    g_over3 = over3;
+
+    // 오버웨이트 발생 시 Hold time 업데이트
+    if (overNow) {
+        unsigned long candidate = nowMs + EXTEND_HOLD_MS;
+        if (candidate > extendHoldUntil) extendHoldUntil = candidate;
+    }
+
+    bool inExtendHoldWindow = (nowMs < extendHoldUntil);
+    bool overloaded = overNow || inExtendHoldWindow;
+
+    g_overloaded = overloaded;
+    g_autoModeHttp = autoMode;
+
+    // 시리얼 모니터링 출력
+    Serial.printf(
+        "W1=%.1f | W2=%.1f | W3=%.1f | TOTAL=%.1f | over1=%c | over2=%c | over3=%c | hold=%s | mode=%s | actuator=%s\n",
+        lastW1, lastW2, lastW3, medTotal,
+        over1?'Y':'N', over2?'Y':'N', over3?'Y':'N',
+        inExtendHoldWindow?"ON":"OFF",
+        autoMode?"AUTO":"MANUAL",
+        actuatorState==1?"EXTEND":(actuatorState==0?"RETRACT":"STOP")
+    );
+
+    // 자동 모드 제어 로직
+    if (autoMode) {
+        if (overloaded) {
+            if (actuatorState != 1) actuatorExtend();
+        } else {
+            if (actuatorState != 0) actuatorRetract();
+        }
+    }
+
+    // BLE Notify 전송
+    if (deviceConnected && pNotifyChar) {
+        char payload[64];
+        // actuatorState를 0:RETRACT, 1:EXTEND, -1:STOP으로 사용하므로,
+        // BLE 전송 시에는 0:RETRACT, 1:EXTEND만 사용한다고 가정하고 -1은 0으로 전송합니다.
+        int bleActuatorState = (actuatorState == 1) ? 1 : 0; 
+        
+        snprintf(payload, sizeof(payload),
+            "W,%.1f,%.1f,%.1f,%d,%d,%d\n", // W1, W2, W3, overloaded(1/0), autoMode(1/0), actuatorState(1/0)
+            lastW1, lastW2, lastW3,
+            overloaded ? 1 : 0,
+            autoMode ? 1 : 0,
+            bleActuatorState
+        );
+        pNotifyChar->setValue((uint8_t*)payload, strlen(payload));
+        pNotifyChar->notify();
+    }
+
+    // BLE 연결 해제 후 광고 재시작 로직
+    if (!deviceConnected && oldDeviceConnected) {
+        delay(200);
+        oldDeviceConnected = deviceConnected;
+    }
+
+    if (deviceConnected && !oldDeviceConnected) {
+        oldDeviceConnected = deviceConnected;
+    }
+
+    delay(5);
 }
