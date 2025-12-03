@@ -158,6 +158,7 @@ class MainActivity : AppCompatActivity() {
     // ---------- WiFi / HTTP 상태 폴링 ----------
     private val WIFI_AP_IP = "192.168.4.1"
     private val WIFI_STATUS_URL = "http://$WIFI_AP_IP/status"
+    private val WIFI_COMMAND_URL = "http://$WIFI_AP_IP/command" // ★ 명령 전송 URL
     private var wifiStatusJob: Job? = null
     private val ENABLE_WIFI_STATUS_POLL = true   // 필요 없으면 false로 꺼도 됨
 
@@ -463,6 +464,7 @@ class MainActivity : AppCompatActivity() {
             axisLeft.removeAllLimitLines()
             axisLeft.addLimitLine(limit)
 
+            setVisibleXRangeMaximum(60f) // ★ 최근 60포인트만 보이게
             animateX(300)
             invalidate()
         }
@@ -496,7 +498,7 @@ class MainActivity : AppCompatActivity() {
         txtMotorState?.text  = "게이트: ${if (actuatorExtended) "게이트 오픈" else "게이트 클로즈"}"
         txtLastUpdated?.text = "마지막 수신: ${formatTime(now)}"
 
-        // BLE 상태에 맞춰 스위치 동기화 (WiFi도 autoMode 그대로 반영)
+        // BLE / WiFi 상관없이 스위치 상태 동기화
         switchAuto.isChecked = autoMode
 
         val (label, color) = when {
@@ -512,7 +514,7 @@ class MainActivity : AppCompatActivity() {
         // 그래프: W1/W2/W3 3개 라인
         appendPressureValue(w1, w2, w3)
 
-        // 과부하 알람 (아무 소스나 기준)
+        // 과부하 알람
         if (overloaded) {
             pushPresetAlarm(
                 level = AlarmLevel.WARN,
@@ -546,9 +548,6 @@ class MainActivity : AppCompatActivity() {
                         val w1 = json.optDouble("W1", 0.0).toFloat()
                         val w2 = json.optDouble("W2", 0.0).toFloat()
                         val w3 = json.optDouble("W3", 0.0).toFloat()
-                        val over1 = json.optInt("over1", 0) == 1
-                        val over2 = json.optInt("over2", 0) == 1
-                        val over3 = json.optInt("over3", 0) == 1
                         val overloaded = json.optInt("overloaded", 0) == 1
                         val autoMode = json.optInt("autoMode", 1) == 1
                         val actuatorExtended = json.optInt("actuatorState", 0) == 1
@@ -597,7 +596,14 @@ class MainActivity : AppCompatActivity() {
 
     // 🔹 모드 전환 헬퍼: WiFi 모드
     private fun enterWifiMode() {
-        if (currentMode == ConnectionMode.WIFI) return
+        if (currentMode == ConnectionMode.WIFI) {
+            // 이미 WiFi 모드라도, 폴링이 꺼져있으면 다시 켜기
+            if (ENABLE_WIFI_STATUS_POLL && wifiStatusJob == null) {
+                startWifiStatusLoop()
+            }
+            chipRtt.text = "WiFi 모드 (/status 폴링)"
+            return
+        }
         currentMode = ConnectionMode.WIFI
 
         if (ENABLE_WIFI_STATUS_POLL) {
@@ -815,38 +821,20 @@ class MainActivity : AppCompatActivity() {
             true
         }
 
-        // 모드 스위치 → ESP32로 AUTO / MANUAL 전송
+        // 모드 스위치 → ESP32로 AUTO / MANUAL 전송 (BLE/WiFi 공통) ★
         switchAuto.setOnCheckedChangeListener { _, isChecked ->
-            if (!hasBlePermissions()) {
-                perm.requestBlePermissions()
-                switchAuto.isChecked = !isChecked
-                return@setOnCheckedChangeListener
-            }
-
-            if (isChecked) {
-                sendBleCommand("MODE_AUTO")
-                toast("AUTO 모드 전환 요청")
-            } else {
-                sendBleCommand("MODE_MANUAL")
-                toast("MANUAL 모드 전환 요청")
-            }
+            val cmd = if (isChecked) "MODE_AUTO" else "MODE_MANUAL"
+            sendCommand(cmd)
+            toast(if (isChecked) "AUTO 모드 전환 요청" else "MANUAL 모드 전환 요청")
         }
 
-        // 게이트 제어 버튼
+        // 게이트 제어 버튼 (BLE/WiFi 공통) ★
         btnGateOpen.setOnClickListener {
-            if (hasBlePermissions()) {
-                sendBleCommand("EXTEND")
-            } else {
-                perm.requestBlePermissions()
-            }
+            sendCommand("EXTEND")
         }
 
         btnGateClose.setOnClickListener {
-            if (hasBlePermissions()) {
-                sendBleCommand("RETRACT")
-            } else {
-                perm.requestBlePermissions()
-            }
+            sendCommand("RETRACT")
         }
 
         // 프리셋 버튼 (테스트 알람용)
@@ -1156,7 +1144,50 @@ class MainActivity : AppCompatActivity() {
         if (!ok) {
             toast("BLE 전송 실패")
         } else {
-            chipRtt.text = "명령 전송: $payload"
+            chipRtt.text = "BLE 명령 전송: $payload"
+        }
+    }
+
+    // -------------------- WiFi 명령 전송 (/command?cmd=...) -------------------- ★
+    private suspend fun sendWifiCommand(payload: String) {
+        try {
+            val url = URL("$WIFI_COMMAND_URL?cmd=$payload")
+            val conn = (url.openConnection() as HttpURLConnection).apply {
+                connectTimeout = 1000
+                readTimeout = 1000
+                requestMethod = "GET"
+            }
+            val code = conn.responseCode
+            Log.d("WIFI_CMD", "요청: $payload, 응답코드=$code")
+            conn.disconnect()
+
+            withContext(Dispatchers.Main) {
+                if (code == 200) {
+                    chipRtt.text = "WiFi 명령 전송: $payload"
+                } else {
+                    toast("WiFi 명령 실패 (HTTP $code)")
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("WIFI_CMD", "명령 전송 실패: ${e.message}")
+            withContext(Dispatchers.Main) {
+                toast("WiFi 명령 전송 실패: ${e.message}")
+            }
+        }
+    }
+
+    // -------------------- 모드에 따라 BLE/WiFi 둘 다 지원하는 공통 명령 -------------------- ★
+    private fun sendCommand(payload: String) {
+        when (currentMode) {
+            ConnectionMode.BLE -> {
+                // BLE 권한/연결 조건 체크는 sendBleCommand 내부에서 함
+                sendBleCommand(payload)
+            }
+            ConnectionMode.WIFI -> {
+                lifecycleScope.launch(Dispatchers.IO) {
+                    sendWifiCommand(payload)
+                }
+            }
         }
     }
 }
