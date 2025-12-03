@@ -3,6 +3,7 @@
  * HX711 로드셀(3개) + 릴레이 제어 + BLE 양방향 + WiFi AP
  *
  * (최종 수정: actuatorStop() 재추가 및 setModeManual() 로직 개선)
+ * (핵심 수정: actuatorExtend/Retract에 10ms delay 추가하여 동작 안정화)
  *
  * - 현재는 로드셀 1번만 실제로 연결 (USE_LOADCELL2/3 = false)
  * - 나중에 2, 3번 연결하면 플래그만 true로 바꾸면 확장 가능
@@ -10,17 +11,17 @@
  * 기능 요약
  * - HX711 로드셀 3개 구조 (지금은 1번만 사용)
  * - 샘플 여러 번 읽어서 "총합"에 중간값 필터 적용
- * - 오버웨이트 조건: 사용 중인 로드셀 중 하나라도 THRESHOLD 초과 → EXTEND
+ * - 오버웨이트 조건: 사용 중인 로드셀 중 하나라도 THRESHOLD 초과 -> EXTEND
  * - 한 번 오버웨이트 되면 이후 10초 동안 무조건 EXTEND 유지
  * - BLE Notify:
  * "W,W1,W2,W3,overloaded,autoMode,actuatorState"
  * - WiFi AP + HTTP:
- * /status → JSON 형식으로 W1/W2/W3 및 over1/2/3, overloaded 등 제공
- * /cmd → 모드/동작 수동 제어 (AUTO/MANUAL + EXTEND/RETRACT/STOP)
+ * /status -> JSON 형식으로 W1/W2/W3 및 over1/2/3, overloaded 등 제공
+ * /cmd -> 모드/동작 수동 제어 (AUTO/MANUAL + EXTEND/RETRACT/STOP)
  *
  * - 통신 정책
- * ✔ BLE 연결되면 → WiFi AP 끔 (BLE 우선)
- * ✔ WiFi 요청 들어오면 → BLE 강제 disconnect (WiFi 우선)
+ * ✔ BLE 연결되면 -> WiFi AP 끔 (BLE 우선)
+ * ✔ WiFi 요청 들어오면 -> BLE 강제 disconnect (WiFi 우선)
  *******************************************************/
 
 #include <Arduino.h>
@@ -70,8 +71,8 @@ const float SET_SCALE2 = 8.686992f;
 const float SET_SCALE3 = 8.686992f;
 
 const bool USE_LOADCELL1 = true;
-const bool USE_LOADCELL2 = false;
-const bool USE_LOADCELL3 = false;
+const bool USE_LOADCELL2 = true;
+const bool USE_LOADCELL3 = true;
 
 // -----------------------------------------------------
 // 2) 릴레이 핀 설정
@@ -153,13 +154,15 @@ void setModeManual(const char* reason, bool doStop) {
         // 기존: STOP (ALL OFF)
         // 수정: RETRACT (IN1, IN3 ON) 상태로 전환하여 기본 상태 유지
         actuatorStop(); // 일단 정지하여 모터 안전 보장
+        // 강제 정지 후 RETRACT 전환 시에도 릴레이 안정화 지연이 필요할 수 있습니다.
+        delay(10); 
         
         digitalWrite(IN1, RELAY_ON);
         digitalWrite(IN3, RELAY_ON);
 
         actuatorState = 0; // RETRACT 상태
         g_actuatorState = 0;
-        printRelayState("▶ Actuator: RETRACT (Manual Mode Start)");
+        printRelayState("-> Actuator: RETRACT (Manual Mode Start)");
     }
 }
 
@@ -179,7 +182,7 @@ void actuatorStop() {
     digitalWrite(IN3, RELAY_OFF);
     digitalWrite(IN4, RELAY_OFF);
 
-    printRelayState("▶ Actuator: STOP");
+    printRelayState("-> Actuator: STOP");
 }
 
 
@@ -189,6 +192,9 @@ void actuatorRetract() {
     
     actuatorStop(); // 동작 전 반드시 정지
 
+    // 🛑 릴레이의 기계적 접점 안정화 시간 (10ms) 추가
+    delay(10); 
+    
     actuatorState = 0;
     g_actuatorState = 0;
 
@@ -196,7 +202,7 @@ void actuatorRetract() {
     digitalWrite(IN1, RELAY_ON);
     digitalWrite(IN3, RELAY_ON);
 
-    printRelayState("▶ Actuator: close (1,3 ON)");
+    printRelayState("-> Actuator: close (1,3 ON)");
 }
 
 void actuatorExtend() {
@@ -205,6 +211,9 @@ void actuatorExtend() {
     
     actuatorStop(); // 동작 전 반드시 정지
     
+    // 🛑 릴레이의 기계적 접점 안정화 시간 (10ms) 추가
+    delay(10); 
+    
     actuatorState = 1;
     g_actuatorState = 1;
 
@@ -212,7 +221,7 @@ void actuatorExtend() {
     digitalWrite(IN2, RELAY_ON);
     digitalWrite(IN4, RELAY_ON);
 
-    printRelayState("▶ Actuator: open (2,4 ON)");
+    printRelayState("-> Actuator: open (2,4 ON)");
 }
 
 // =====================================================
@@ -237,7 +246,7 @@ class MyServerCallbacks : public BLEServerCallbacks {
     }
     void onDisconnect(BLEServer*) override {
         deviceConnected = false;
-        Serial.println("BLE Central 해제 → AP 재시작");
+        Serial.println("BLE Central 해제 -> AP 재시작");
         startAP();
     }
 };
@@ -255,12 +264,11 @@ class CmdCallback : public BLECharacteristicCallbacks {
         // MANUAL 모드일 때만 액추에이터 제어 허용
         else if (!autoMode && cmd == "EXTEND") { setModeManual("BLE EXTEND", false); actuatorExtend(); }
         else if (!autoMode && cmd == "RETRACT") { setModeManual("BLE RETRACT", false); actuatorRetract(); }
-        else if (!autoMode && cmd == "STOP") { 
-            setModeManual("BLE STOP", false); 
+        else if (!autoMode && cmd == "STOP") { setModeManual("BLE STOP", false); 
             actuatorStop(); // actuatorStop() 함수 사용
         }
         else if (autoMode && (cmd == "EXTEND" || cmd == "RETRACT" || cmd == "STOP")) {
-            Serial.println("❌ BLE CMD: AUTO 모드에서 액추에이터 제어 무시됨.");
+            Serial.println("-> BLE CMD: AUTO 모드에서 액추에이터 제어 무시됨.");
         }
     }
 };
@@ -309,7 +317,7 @@ void handleCmd() {
             else if (action == "RETRACT") actuatorRetract();
             else if (action == "STOP") actuatorStop(); // actuatorStop() 함수 사용
         } else {
-            Serial.println("❌ HTTP CMD: AUTO 모드에서 액추에이터 제어 무시됨.");
+            Serial.println("-> HTTP CMD: AUTO 모드에서 액추에이터 제어 무시됨.");
         }
     }
 
@@ -327,22 +335,22 @@ void startWebServer() {
     server.on("/status", HTTP_ANY, handleStatus);
     server.on("/cmd",    HTTP_ANY, handleCmd);
     server.begin();
-    Serial.println("🌐 WebServer 시작 (/status, /cmd)");
+    Serial.println("-> WebServer 시작 (/status, /cmd)");
 }
 
 // =====================================================
 // WiFi AP
 // =====================================================
 void startAP() {
-    Serial.println("📡 AP 모드 시작…");
+    Serial.println("-> AP 모드 시작...");
     WiFi.mode(WIFI_AP);
     bool ok = WiFi.softAP(AP_SSID, AP_PASS);
 
     if (ok) {
-        Serial.println("✅ AP 활성화됨");
+        Serial.println("-> AP 활성화됨");
         Serial.printf("SSID: %s\nPASS: %s\n", AP_SSID, AP_PASS);
         Serial.print("AP IP: "); Serial.println(WiFi.softAPIP());
-    } else Serial.println("❌ AP 시작 실패");
+    } else Serial.println("-> AP 시작 실패");
 }
 
 // =====================================================
