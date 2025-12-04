@@ -7,14 +7,12 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- 상단 앱바 -->
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/topBar"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
         app:title="@string/app_name" />
 
-    <!-- 본문 스크롤 -->
     <androidx.core.widget.NestedScrollView
         android:id="@+id/scroll"
         android:layout_width="match_parent"
@@ -29,7 +27,6 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- 연결 카드 -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardConnect"
                 android:layout_width="match_parent"
@@ -50,7 +47,6 @@
                         android:textSize="16sp"
                         android:textStyle="bold" />
 
-                    <!-- 시리얼 + BLE 연결 + WiFi AP -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -82,7 +78,6 @@
                             app:cornerRadius="12dp"
                             android:text="BLE 연결" />
 
-                        <!-- ▼ WiFi AP 버튼 NEW -->
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnWifiAp"
                             style="?attr/materialButtonOutlinedStyle"
@@ -102,7 +97,6 @@
                         android:layout_marginTop="8dp"
                         android:text="연결 해제" />
 
-                    <!-- 상태 칩 -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -141,7 +135,6 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- 바리케이드 정보 카드 -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardDevice"
                 android:layout_width="match_parent"
@@ -154,7 +147,6 @@
                 app:strokeColor="?attr/colorOutlineVariant"
                 app:strokeWidth="1dp">
 
-                <!-- 상단: 디바이스 요약 -->
                 <androidx.constraintlayout.widget.ConstraintLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -220,7 +212,6 @@
                 </androidx.constraintlayout.widget.ConstraintLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- 0) 실시간 상태 대시보드 + 조작 패널 -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardSensor"
                 android:layout_width="match_parent"
@@ -236,7 +227,6 @@
                     android:orientation="vertical"
                     android:padding="16dp">
 
-                    <!-- 제목 -->
                     <TextView
                         android:id="@+id/txtSensorTitle"
                         android:layout_width="match_parent"
@@ -245,7 +235,6 @@
                         android:textStyle="bold"
                         android:textSize="16sp" />
 
-                    <!-- 상태 배지 (정상 / 주의 / 위험) -->
                     <TextView
                         android:id="@+id/txtSensorLevel"
                         android:layout_width="wrap_content"
@@ -261,7 +250,6 @@
                         android:layout_width="match_parent"
                         android:layout_height="8dp" />
 
-                    <!-- 센서값 / 출력상태 -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -296,7 +284,6 @@
                             android:textSize="14sp" />
                     </LinearLayout>
 
-                    <!-- 마지막 수신 시간 -->
                     <TextView
                         android:id="@+id/txtLastUpdated"
                         android:layout_width="match_parent"
@@ -306,26 +293,23 @@
                         android:textSize="12sp"
                         android:textColor="@color/navy_300" />
 
-                    <!-- 구분선 -->
                     <View
                         android:layout_width="match_parent"
                         android:layout_height="12dp" />
 
-                    <!-- ▼ 조작 패널 제목 -->
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:text="수동 제어"
                         android:textStyle="bold"
                         android:textSize="15sp" />
 
-                    <!-- GATE OPEN / CLOSE (긴급 개방 / 폐쇄) -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
                         android:layout_marginTop="8dp">
 
-                        <!-- 긴급 개방(OPEN) 버튼: 빨간 색상 -->
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnGateOpen"
                             style="?attr/materialButtonStyle"
@@ -337,7 +321,18 @@
                             android:textColor="@android:color/white"
                             app:backgroundTint="#F44336" />
 
-                        <!-- 게이트 닫기(CLOSE) 버튼: 아웃라인 -->
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnGateStop"
+                            style="?attr/materialButtonTonalStyle"
+                            android:layout_width="0dp"
+                            android:layout_height="52dp"
+                            android:layout_weight="1"
+                            android:layout_marginStart="8dp"
+                            android:text="강제 정지"
+                            android:textStyle="bold"
+                            android:textColor="?attr/colorOnSurface"
+                            app:backgroundTint="?attr/colorTertiaryContainer" />
+
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnGateClose"
                             style="?attr/materialButtonOutlinedStyle"
@@ -347,23 +342,45 @@
                             android:layout_marginStart="8dp"
                             android:text="폐쇄"
                             android:textStyle="bold"
-                            android:textColor="@android:color/black" />
+                            android:textColor="?attr/colorOnSurface" />
                     </LinearLayout>
 
-                    <!-- AUTO 제어 스위치 -->
-                    <com.google.android.material.materialswitch.MaterialSwitch
-                        android:id="@+id/switchAuto"
+                    <com.google.android.material.button.MaterialButtonToggleGroup
+                        android:id="@+id/toggleMode"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:text="임계치 초과시 자동제어 (10초 이상 EXTEND 유지)" />
+                        app:singleSelection="true">
+
+                        <Button
+                            android:id="@+id/btnModeManual"
+                            style="?attr/materialButtonOutlinedStyle"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="수동 제어 (MANUAL)" />
+
+                        <Button
+                            android:id="@+id/btnModeAuto"
+                            style="?attr/materialButtonOutlinedStyle"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="자동 제어 (AUTO)" />
+
+                    </com.google.android.material.button.MaterialButtonToggleGroup>
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:textSize="12sp"
+                        android:text="* 자동 제어: 임계치 초과 시 EXTEND (10초 유지)" />
                 </LinearLayout>
 
             </com.google.android.material.card.MaterialCardView>
 
 
 
-            <!-- 알람 리스트 -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/recyclerAlarms"
                 android:layout_width="match_parent"

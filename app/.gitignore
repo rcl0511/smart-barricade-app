@@ -1,1 +1,3 @@
-/build
+Arduino/
+arduino/
+*.ino
