@@ -66,9 +66,9 @@ const int LOADCELL3_SCK_PIN  = 17;
 
 HX711 scale1, scale2, scale3;
 
-const float SET_SCALE1 = 8.686992f;
-const float SET_SCALE2 = 8.686992f;
-const float SET_SCALE3 = 8.686992f;
+const float SET_SCALE1 = 9.425f;
+const float SET_SCALE2 = 9.4f;
+const float SET_SCALE3 = 10.6f;
 
 const bool USE_LOADCELL1 = true;
 const bool USE_LOADCELL2 = true;
