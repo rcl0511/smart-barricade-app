@@ -7,25 +7,47 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/topBar"
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBar"
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        app:title="@string/app_name" />
+        android:layout_height="wrap_content"
+        android:fitsSystemWindows="true"
+        android:background="?attr/colorPrimary">
+
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/topBar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="?attr/colorPrimary"
+            android:elevation="4dp"
+            app:title="Smart Barricade"
+
+            app:titleTextColor="?attr/colorOnPrimary"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            app:navigationIconTint="?attr/colorOnPrimary" />
+
+
+    </com.google.android.material.appbar.AppBarLayout>
+
 
     <androidx.core.widget.NestedScrollView
         android:id="@+id/scroll"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:fillViewport="true"
-        android:paddingTop="?attr/actionBarSize"
-        android:paddingBottom="24dp">
+        android:paddingBottom="24dp"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:padding="16dp">
+
 
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardConnect"
@@ -34,11 +56,13 @@
                 android:layout_marginBottom="12dp"
                 app:cardCornerRadius="16dp">
 
+
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
                     android:padding="16dp">
+
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -47,11 +71,13 @@
                         android:textSize="16sp"
                         android:textStyle="bold" />
 
+
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
                         android:orientation="horizontal">
+
 
                         <com.google.android.material.textfield.TextInputLayout
                             style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
@@ -60,13 +86,16 @@
                             android:layout_weight="1"
                             app:boxBackgroundMode="outline">
 
+
                             <com.google.android.material.textfield.TextInputEditText
                                 android:id="@+id/serialEdit"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:hint="시리얼 입력" />
 
+
                         </com.google.android.material.textfield.TextInputLayout>
+
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnConnect"
@@ -74,9 +103,10 @@
                             android:layout_width="wrap_content"
                             android:layout_height="match_parent"
                             android:layout_marginStart="8dp"
+                            android:text="BLE 연결"
                             app:backgroundTint="#3C339FFF"
-                            app:cornerRadius="12dp"
-                            android:text="BLE 연결" />
+                            app:cornerRadius="12dp" />
+
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnWifiAp"
@@ -84,8 +114,8 @@
                             android:layout_width="wrap_content"
                             android:layout_height="match_parent"
                             android:layout_marginStart="8dp"
-                            app:cornerRadius="12dp"
-                            android:text="Wi-Fi AP" />
+                            android:text="Wi-Fi AP"
+                            app:cornerRadius="12dp" />
                     </LinearLayout>
 
 
@@ -97,20 +127,21 @@
                         android:layout_marginTop="8dp"
                         android:text="연결 해제" />
 
+
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
                         android:orientation="horizontal"
                         android:gravity="center"
-                        android:weightSum="3">
+                        android:weightSum="2">
+
 
                         <com.google.android.material.chip.Chip
                             android:id="@+id/chipConn"
                             style="@style/Widget.Material3.Chip.Assist.Elevated"
-                            android:layout_width="149dp"
+                            android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginEnd="4dp"
                             android:layout_weight="1"
                             android:gravity="center"
                             android:minWidth="0dp"
@@ -119,20 +150,239 @@
                             app:chipIconTint="#2196F3"
                             app:chipIconVisible="true" />
 
+
                         <com.google.android.material.chip.Chip
                             android:id="@+id/chipRtt"
                             style="@style/Widget.Material3.Chip.Assist.Elevated"
-                            android:layout_width="163dp"
+                            android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginEnd="4dp"
                             android:layout_weight="1"
                             android:gravity="center"
                             android:minWidth="0dp"
                             android:text="RTT: - ms" />
 
+
                     </LinearLayout>
 
+
                 </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardSensor"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                app:cardCornerRadius="16dp"
+                app:cardPreventCornerOverlap="true">
+
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+
+                    <TextView
+                        android:id="@+id/txtSensorTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="바리케이트"
+                        android:textSize="25sp"
+                        android:textStyle="bold" />
+
+
+                    <com.google.android.material.button.MaterialButtonToggleGroup
+                        android:id="@+id/toggleMode"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        app:singleSelection="true">
+
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnModeManual"
+                            style="?attr/materialButtonOutlinedStyle"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="수동 제어" />
+
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnModeAuto"
+                            style="?attr/materialButtonOutlinedStyle"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="자동 제어" />
+
+
+                    </com.google.android.material.button.MaterialButtonToggleGroup>
+
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:orientation="vertical">
+
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal">
+
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnGateOpen"
+                                style="?attr/materialButtonStyle"
+                                android:layout_width="0dp"
+                                android:layout_height="52dp"
+                                android:layout_weight="1"
+                                android:text="긴급 개방"
+                                android:textColor="@android:color/white"
+                                android:textSize="12sp"
+                                android:textStyle="bold"
+                                app:backgroundTint="#F44336" />
+
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnGateStop"
+                                style="?attr/materialButtonTonalStyle"
+                                android:layout_width="0dp"
+                                android:layout_height="52dp"
+                                android:layout_weight="1"
+                                android:layout_marginStart="8dp"
+                                android:text="STOP"
+                                android:textSize="12sp"
+                                android:textColor="?attr/colorOnSurface"
+                                android:textStyle="bold"
+                                app:backgroundTint="?attr/colorTertiaryContainer" />
+
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnGateClose"
+                                style="?attr/materialButtonOutlinedStyle"
+                                android:layout_width="0dp"
+                                android:layout_height="52dp"
+                                android:layout_weight="1"
+                                android:layout_marginStart="8dp"
+                                android:text="폐쇄"
+                                android:textSize="12sp"
+                                android:textColor="?attr/colorOnSurface"
+                                android:textStyle="bold" />
+
+
+                        </LinearLayout>
+
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="개별 수동 제어"
+                            android:textSize="12sp"
+                            android:layout_marginTop="12dp"
+                            android:textStyle="italic" />
+
+                        <androidx.gridlayout.widget.GridLayout
+                            android:id="@+id/gridSubControls"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            app:columnCount="2"
+                            app:rowCount="2">
+
+
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnLedDown"
+                                style="?attr/materialButtonOutlinedStyle"
+                                android:layout_width="0dp"
+                                android:layout_height="60dp"
+                                android:text="다리 확장"
+                                app:icon="@drawable/ic_arrow_upward"
+                                app:iconGravity="textStart"
+                                app:iconSize="24dp"
+                                app:iconTint="?attr/colorPrimary"
+                                android:layout_marginStart="4dp"
+                                android:layout_marginBottom="4dp"
+                                app:layout_column="1"
+                                app:layout_row="0"
+                                app:layout_columnWeight="1"
+                                app:layout_gravity="fill_horizontal" />
+
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnLedUp"
+                                style="?attr/materialButtonOutlinedStyle"
+                                android:layout_width="0dp"
+                                android:layout_height="60dp"
+                                android:text="다리 축소"
+                                app:icon="@drawable/ic_arrow_downward"
+                                app:iconGravity="textStart"
+                                app:iconSize="24dp"
+                                app:iconTint="?attr/colorPrimary"
+                                android:layout_marginEnd="4dp"
+                                android:layout_marginBottom="4dp"
+                                app:layout_column="0"
+                                app:layout_row="0"
+                                app:layout_columnWeight="1"
+                                app:layout_gravity="fill_horizontal" />
+
+
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnLegDown"
+                                style="?attr/materialButtonOutlinedStyle"
+                                android:layout_width="0dp"
+                                android:layout_height="60dp"
+                                android:text="LED 확장"
+                                android:textSize="14sp"
+                                android:textStyle="bold"
+                                android:layout_marginStart="4dp"
+                                android:layout_marginTop="4dp"
+                                app:layout_column="1"
+                                app:layout_row="1"
+                                app:layout_columnWeight="1"
+                                app:layout_gravity="fill_horizontal" />
+
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnLegUp"
+                                style="?attr/materialButtonOutlinedStyle"
+                                android:layout_width="0dp"
+                                android:layout_height="60dp"
+                                android:text="LED 축소"
+                                android:textSize="14sp"
+                                android:textStyle="bold"
+                                android:layout_marginEnd="4dp"
+                                android:layout_marginTop="4dp"
+                                app:layout_column="0"
+                                app:layout_row="1"
+                                app:layout_columnWeight="1"
+                                app:layout_gravity="fill_horizontal" />
+
+
+
+
+                        </androidx.gridlayout.widget.GridLayout>
+
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="* 자동 제어: 10초 유지"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+
+
+                </LinearLayout>
+
+
             </com.google.android.material.card.MaterialCardView>
 
             <com.google.android.material.card.MaterialCardView
@@ -147,55 +397,64 @@
                 app:strokeColor="?attr/colorOutlineVariant"
                 app:strokeWidth="1dp">
 
+
                 <androidx.constraintlayout.widget.ConstraintLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:padding="16dp">
 
-                    <TextView
-                        android:id="@+id/txtDeviceTitle"
-                        android:layout_width="0dp"
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnResetOffset"
+                        style="?attr/materialButtonOutlinedStyle"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="바리케이드 #A-10"
-                        android:textSize="25sp"
-                        android:textStyle="bold"
-                        app:layout_constraintEnd_toStartOf="@+id/chipBattery"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toTopOf="parent" />
+                        android:minWidth="0dp"
+                        android:paddingHorizontal="16dp"
+                        android:paddingVertical="8dp"
+                        android:text="오프셋 초기화"
+                        android:textSize="12sp"
+                        app:cornerRadius="8dp"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintStart_toStartOf="parent" />
+
 
                     <com.google.android.material.chip.Chip
                         android:id="@+id/chipBattery"
-                        style="@style/Widget.Material3.Chip.Assist"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="98%"
                         app:chipIcon="@drawable/ic_battery"
                         app:chipIconVisible="true"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        app:layout_constraintTop_toTopOf="parent" />
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent" />
+
 
                     <TextView
                         android:id="@+id/txtDeviceInfo"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="20dp"
-                        android:textStyle="bold"
+                        android:layout_marginTop="12dp"
                         android:text="신호 dBm | 마지막 통신: | 상태: "
-                        app:layout_constraintEnd_toEndOf="parent"
+                        android:textStyle="bold"
+                        app:layout_constraintTop_toBottomOf="@id/chipBattery"
                         app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toBottomOf="@id/txtDeviceTitle" />
+                        app:layout_constraintEnd_toEndOf="parent" />
+
 
                     <TextView
                         android:id="@+id/txtSensorStatus"
-                        android:layout_width="wrap_content"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
+                        android:layout_marginTop="8dp"
                         android:text="압력 센서 상태: kgf"
-                        android:textSize="14sp"
                         android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textSize="14sp"
                         android:textStyle="bold"
+                        app:layout_constraintTop_toBottomOf="@id/txtDeviceInfo"
                         app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toBottomOf="@id/txtDeviceInfo" />
+                        app:layout_constraintEnd_toEndOf="parent" />
+
 
                     <com.github.mikephil.charting.charts.LineChart
                         android:id="@+id/chartPressure"
@@ -204,56 +463,33 @@
                         android:layout_marginTop="12dp"
                         app:layout_constraintTop_toBottomOf="@id/txtSensorStatus"
                         app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        tools:ignore="MissingClass"
-                        android:layout_marginStart="0dp"
-                        android:layout_marginEnd="0dp" />
+                        app:layout_constraintEnd_toEndOf="parent" />
 
-                </androidx.constraintlayout.widget.ConstraintLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardSensor"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                app:cardCornerRadius="16dp"
-
-                app:cardPreventCornerOverlap="true">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="16dp">
-
-                    <TextView
-                        android:id="@+id/txtSensorTitle"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="실시간 상태 대시보드"
-                        android:textStyle="bold"
-                        android:textSize="16sp" />
 
                     <TextView
                         android:id="@+id/txtSensorLevel"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
+                        android:layout_marginTop="8dp"
                         android:paddingHorizontal="10dp"
                         android:paddingVertical="4dp"
                         android:text="대기"
+                        android:textColor="@android:color/white"
                         android:textSize="12sp"
-                        android:textColor="@android:color/white" />
+                        app:layout_constraintTop_toBottomOf="@id/chartPressure"
+                        app:layout_constraintStart_toStartOf="parent" />
 
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="8dp" />
 
                     <LinearLayout
-                        android:layout_width="match_parent"
+                        android:id="@+id/layoutStates"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical">
+                        android:layout_marginTop="8dp"
+                        android:orientation="vertical"
+                        app:layout_constraintTop_toBottomOf="@id/txtSensorLevel"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent">
+
 
                         <TextView
                             android:id="@+id/txtFsrValue"
@@ -262,6 +498,7 @@
                             android:text="로드셀 값: -"
                             android:textSize="14sp" />
 
+
                         <TextView
                             android:id="@+id/txtLedState"
                             android:layout_width="match_parent"
@@ -269,12 +506,14 @@
                             android:text="모드: -"
                             android:textSize="14sp" />
 
+
                         <TextView
                             android:id="@+id/txtBuzzerState"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:text="과부하 상태: -"
                             android:textSize="14sp" />
+
 
                         <TextView
                             android:id="@+id/txtMotorState"
@@ -284,101 +523,22 @@
                             android:textSize="14sp" />
                     </LinearLayout>
 
+
                     <TextView
                         android:id="@+id/txtLastUpdated"
-                        android:layout_width="match_parent"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
                         android:text="마지막 수신: -"
+                        android:textColor="@android:color/darker_gray"
                         android:textSize="12sp"
-                        android:textColor="@color/navy_300" />
+                        app:layout_constraintTop_toBottomOf="@id/layoutStates"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent" />
 
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="12dp" />
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="수동 제어"
-                        android:textStyle="bold"
-                        android:textSize="15sp" />
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:layout_marginTop="8dp">
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnGateOpen"
-                            style="?attr/materialButtonStyle"
-                            android:layout_width="0dp"
-                            android:layout_height="52dp"
-                            android:layout_weight="1"
-                            android:text="긴급 개방"
-                            android:textStyle="bold"
-                            android:textColor="@android:color/white"
-                            app:backgroundTint="#F44336" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnGateStop"
-                            style="?attr/materialButtonTonalStyle"
-                            android:layout_width="0dp"
-                            android:layout_height="52dp"
-                            android:layout_weight="1"
-                            android:layout_marginStart="8dp"
-                            android:text="강제 정지"
-                            android:textStyle="bold"
-                            android:textColor="?attr/colorOnSurface"
-                            app:backgroundTint="?attr/colorTertiaryContainer" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnGateClose"
-                            style="?attr/materialButtonOutlinedStyle"
-                            android:layout_width="0dp"
-                            android:layout_height="52dp"
-                            android:layout_weight="1"
-                            android:layout_marginStart="8dp"
-                            android:text="폐쇄"
-                            android:textStyle="bold"
-                            android:textColor="?attr/colorOnSurface" />
-                    </LinearLayout>
-
-                    <com.google.android.material.button.MaterialButtonToggleGroup
-                        android:id="@+id/toggleMode"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        app:singleSelection="true">
-
-                        <Button
-                            android:id="@+id/btnModeManual"
-                            style="?attr/materialButtonOutlinedStyle"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="수동 제어 (MANUAL)" />
-
-                        <Button
-                            android:id="@+id/btnModeAuto"
-                            style="?attr/materialButtonOutlinedStyle"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="자동 제어 (AUTO)" />
-
-                    </com.google.android.material.button.MaterialButtonToggleGroup>
-
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:textSize="12sp"
-                        android:text="* 자동 제어: 임계치 초과 시 EXTEND (10초 유지)" />
-                </LinearLayout>
-
+                </androidx.constraintlayout.widget.ConstraintLayout>
             </com.google.android.material.card.MaterialCardView>
-
 
 
             <androidx.recyclerview.widget.RecyclerView
@@ -389,6 +549,12 @@
                 android:nestedScrollingEnabled="false"
                 tools:listitem="@layout/item_alarm" />
 
+
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
+
+
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
+
+
+

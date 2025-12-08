@@ -1,6 +1,6 @@
+// <project-root>/app/build.gradle.kts
 import org.gradle.kotlin.dsl.implementation
 
-// <project-root>/app/build.gradle.kts
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -14,6 +14,7 @@ android {
     defaultConfig {
         applicationId = "com.example.myapplication"
         minSdk = 26
+        // targetSdk는 compileSdk와 동일하게 설정하는 것이 일반적입니다. (36)
         //noinspection OldTargetApi
         targetSdk = 35
         versionCode = 1
@@ -42,46 +43,41 @@ android {
 
     buildFeatures {
         compose = true
+        // View Binding이나 Data Binding을 사용한다면 여기에 추가해야 합니다.
     }
 }
 
 dependencies {
+    // AndroidX & 기본 구성 요소
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
-    implementation(libs.material)
-    implementation(libs.okhttp)
-    implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.lifecycle.runtime.ktx)
 
-// 그래프 라이브러리
-
-    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
-
-
-
-
-    // HTTP
-    implementation(libs.okhttp)
-
-    // 앱 기반
-    implementation(libs.androidx.appcompat)
+    // UI & Material Design
     implementation(libs.material)
-
-    // 코루틴 (lifecycle-runtime-ktx에 포함되지만 명시 추가 권장)
-    implementation(libs.kotlinx.coroutines.android)
-
-    // AndroidX 기본
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
-
-    // (Compose는 켜두었지만, 현재 화면은 XML 기반 — 그대로 둬도 문제 없음)
     implementation(libs.androidx.activity.compose)
+
+    // Compose
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
 
+    // 통신 및 비동기 처리
+    implementation(libs.okhttp)
+    implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.retrofit)
+    implementation(libs.converter.gson)
+
+    // 프로젝트에서 필요한 라이브러리
+    implementation("androidx.gridlayout:gridlayout:1.0.0") // XML 오류 해결
+
+    // 그래프 라이브러리 (MPAndroidChart)
+    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
+
+
+    // 테스트 종속성
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -89,10 +85,4 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
-
-    // Retrofit
-    implementation(libs.retrofit)
-    implementation(libs.converter.gson)
-
-
 }

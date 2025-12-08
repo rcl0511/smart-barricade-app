@@ -21,7 +21,6 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.ViewGroup
-import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
@@ -50,9 +49,9 @@ import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
 import com.google.android.material.button.MaterialButton
-import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.chip.Chip
+import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.snackbar.Snackbar
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -83,13 +82,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnConnect: MaterialButton
     private lateinit var btnDisconnect: MaterialButton
 
-    // 🔹 모드 / GATE 제어 (토글 그룹 + 버튼)
-    private lateinit var toggleMode: MaterialButtonToggleGroup // 🔥 새로 추가된 토글 그룹
+    // 🔹 모드 / GATE 제어 (스위치 + 버튼)
+    private lateinit var switchAuto: MaterialSwitch
     private lateinit var btnGateOpen: MaterialButton
     private lateinit var btnGateClose: MaterialButton
-    private lateinit var btnGateStop: MaterialButton // 🔥 새로 추가된 강제 정지 버튼
-    private lateinit var btnModeManual: Button // 토글 그룹 내 버튼
-    private lateinit var btnModeAuto: Button   // 토글 그룹 내 버튼
 
     private var btnPresetLoad: MaterialButton? = null
     private var btnPresetDensity: MaterialButton? = null
@@ -128,16 +124,16 @@ class MainActivity : AppCompatActivity() {
     private val discoveredDevices = mutableListOf<BluetoothDevice>()
 
     // ESP32-S3 서비스 / 캐릭터리스틱 UUID (아두이노 코드와 동일)
-    private val SERVICE_UUID = java.util.UUID.fromString(
+    private val SERVICE_UUID = UUID.fromString(
         "12345678-1234-1234-1234-1234567890ab"
     )
-    private val CHAR_UUID_NOTIFY = java.util.UUID.fromString(
+    private val CHAR_UUID_NOTIFY = UUID.fromString(
         "abcd1234-1234-5678-9999-abcdef123456" // ESP32 → Android (Notify)
     )
-    private val CHAR_UUID_WRITE = java.util.UUID.fromString(
+    private val CHAR_UUID_WRITE = UUID.fromString(
         "abcd0002-1234-5678-9999-abcdef123456" // Android → ESP32 (Write)
     )
-    private val CCCD_UUID = java.util.UUID.fromString(
+    private val CCCD_UUID = UUID.fromString(
         "00002902-0000-1000-8000-00805f9b34fb"
     )
 
@@ -147,15 +143,12 @@ class MainActivity : AppCompatActivity() {
     private val MAX_RECONNECT_ATTEMPTS = 3
     private val RECONNECT_DELAY_MS = 3_000L
 
-    // 🔸 BLE 패킷 조각 버퍼 (줄 단위 재조립용)
-    private val bleLineBuffer = StringBuilder()
-
     // ---------- Chart ----------
     private lateinit var chartPressure: LineChart
     private var pressureX = 0f
 
-    // 🔹 그래프 갱신 간격 (0.5초)
-    private val CHART_INTERVAL_MS = 0L
+    // 🔹 그래프 갱신 간격 빠르게 (0.5초)
+    private val CHART_INTERVAL_MS = 500L
     private var lastChartUpdateMs = 0L
     private var lastBleUpdateMs = 0L
 
@@ -167,9 +160,6 @@ class MainActivity : AppCompatActivity() {
     private val WIFI_STATUS_URL = "http://$WIFI_AP_IP/status"
     private var wifiStatusJob: Job? = null
     private val ENABLE_WIFI_STATUS_POLL = true   // 필요 없으면 false로 꺼도 됨
-
-    // 🔹 RSSI 루프 Job (여러 개 안 뜨게 단일 관리)
-    private var rssiJob: Job? = null
 
     // ---------- 알람 / ViewModel ----------
     private val vm: MainViewModel by viewModels()
@@ -255,16 +245,17 @@ class MainActivity : AppCompatActivity() {
                     bluetoothGatt?.close()
                     bluetoothGatt = null
 
-                    // 🔹 RSSI 루프 정리
-                    rssiJob?.cancel()
-                    rssiJob = null
-
                     runOnUiThread {
                         chipConn.text = "연결 끊김"
                         chipConn.setTextColor(Color.GRAY)
                         toast("BLE 연결 끊김")
                         detailsExpanded = false
                         applyExpandState(animated = true)
+
+                        // 🔹 BLE 끊기면 WiFi 모드로 복귀
+                        if (ENABLE_WIFI_STATUS_POLL) {
+                            enterWifiMode()
+                        }
                     }
 
                     val device = lastConnectedDevice
@@ -285,12 +276,7 @@ class MainActivity : AppCompatActivity() {
                             connectToDevice(device)
                         }, RECONNECT_DELAY_MS)
                     } else {
-                        Log.d("BLE_GATT", "재연결 포기 → WiFi 모드 진입")
-
-                        // 🔹 재연결 포기 시에만 WiFi 모드로 복귀
-                        if (ENABLE_WIFI_STATUS_POLL) {
-                            runOnUiThread { enterWifiMode() }
-                        }
+                        Log.d("BLE_GATT", "재연결 포기")
                     }
                 }
             }
@@ -341,7 +327,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // ▼ ESP32에서 넘어온 센서 문자열 처리 (조각 → 줄 단위 재조립)
+        // ▼ ESP32에서 넘어온 센서 문자열 처리
         @SuppressLint("MissingPermission")
         override fun onCharacteristicChanged(
             gatt: BluetoothGatt?,
@@ -352,91 +338,55 @@ class MainActivity : AppCompatActivity() {
             if (characteristic.uuid != CHAR_UUID_NOTIFY) return
 
             val raw = characteristic.value ?: return
-            val chunk = String(raw, Charsets.UTF_8)
-            Log.d("BLE_NOTIFY", "수신 chunk: $chunk")
+            val text = String(raw, Charsets.UTF_8).trim()
+            Log.d("BLE_NOTIFY", "수신 문자열: $text")
 
-            synchronized(bleLineBuffer) {
-                for (ch in chunk) {
-                    when (ch) { // 🔥 수정: 캐리지 리턴(\r)을 무시하고 라인 피드(\n)만 처리
-                        '\r' -> continue // CR 무시
-                        '\n' -> {
-                            val line = bleLineBuffer.toString().trim()
-                            bleLineBuffer.setLength(0)
-                            if (line.isNotEmpty()) {
-                                Log.d("BLE_NOTIFY", "조립된 한 줄: $line")
-                                runOnUiThread {
-                                    handleBleLine(line)
-                                }
-                            }
-                        }
-                        else -> bleLineBuffer.append(ch)
-                    }
-                }
+            // ESP32 포맷: "W,W1,W2,W3,overloaded,autoMode,actuatorState"
+            val parts = text.split(",")
+            if (parts.size < 7) {
+                Log.w("BLE_NOTIFY", "포맷 이상: $text (parts.size=${parts.size})")
+                runOnUiThread { chipRtt.text = "수신 포맷 오류" }
+                return
+            }
+
+            if (parts[0] != "W") {
+                Log.w("BLE_NOTIFY", "헤더 이상: ${parts[0]}")
+                runOnUiThread { chipRtt.text = "수신 헤더 오류" }
+                return
+            }
+
+            val w1 = parts.getOrNull(1)?.toFloatOrNull()
+            val w2 = parts.getOrNull(2)?.toFloatOrNull()
+            val w3 = parts.getOrNull(3)?.toFloatOrNull()
+            val overloaded = (parts.getOrNull(4)?.toIntOrNull() == 1)
+            val autoMode = (parts.getOrNull(5)?.toIntOrNull() == 1)
+            val actuatorExtended = (parts.getOrNull(6)?.toIntOrNull() == 1)
+
+            if (w1 == null || w2 == null || w3 == null) {
+                Log.w("BLE_NOTIFY", "weight 파싱 실패: $text")
+                runOnUiThread { chipRtt.text = "데이터 파싱 실패" }
+                return
+            }
+
+            val totalWeight = w1 + w2 + w3
+
+            runOnUiThread {
+                handleSensorUpdateFromSource(
+                    source = "BLE",
+                    totalWeight = totalWeight,
+                    w1 = w1,
+                    w2 = w2,
+                    w3 = w3,
+                    overloaded = overloaded,
+                    autoMode = autoMode,
+                    actuatorExtended = actuatorExtended
+                )
             }
         }
     }
 
-    // 🔸 BLE 한 줄 처리 함수 (공백/음수 방어 포함)
-    private fun handleBleLine(text: String) {
-        Log.d("BLE_NOTIFY", "RAW line: '$text'")
-
-        val cleaned = text.trim()
-
-        // "W,..." 형태 아니면 바로 리턴
-        if (!cleaned.startsWith("W")) {
-            Log.w("BLE_NOTIFY", "헤더가 W가 아님: $cleaned")
-            chipRtt.text = "수신 헤더 오류"
-            return
-        }
-
-        val parts = cleaned.split(",").map { it.trim() }
-        if (parts.size < 7) {
-            Log.w("BLE_NOTIFY", "포맷 이상: $cleaned (parts.size=${parts.size})")
-            chipRtt.text = "수신 포맷 오류"
-            return
-        }
-
-        val w1 = parts.getOrNull(1)?.toFloatOrNull()
-        val w2 = parts.getOrNull(2)?.toFloatOrNull()
-        val w3 = parts.getOrNull(3)?.toFloatOrNull()
-        val overloaded = (parts.getOrNull(4)?.toIntOrNull() == 1)
-        val autoMode = (parts.getOrNull(5)?.toIntOrNull() == 1)
-        val actuatorExtended = (parts.getOrNull(6)?.toIntOrNull() == 1)
-
-        if (w1 == null || w2 == null || w3 == null) {
-            Log.w("BLE_NOTIFY", "weight 파싱 실패: $cleaned")
-            chipRtt.text = "데이터 파싱 실패"
-            return
-        }
-
-        // 음수 값은 0으로 클램프 → 그래프 축 아래로 안 사라지게
-        val w1c = w1.coerceAtLeast(0f)
-        val w2c = w2.coerceAtLeast(0f)
-        val w3c = w3.coerceAtLeast(0f)
-
-        val totalWeight = w1c + w2c + w3c
-
-        Log.d(
-            "BLE_NOTIFY",
-            "parsed W1=$w1c, W2=$w2c, W3=$w3c, overloaded=$overloaded, auto=$autoMode, actExt=$actuatorExtended"
-        )
-
-        handleSensorUpdateFromSource(
-            source = "BLE",
-            totalWeight = totalWeight,
-            w1 = w1c,
-            w2 = w2c,
-            w3 = w3c,
-            overloaded = overloaded,
-            autoMode = autoMode,
-            actuatorExtended = actuatorExtended
-        )
-    }
-
     // ---------- Chart 세팅 (W1/W2/W3 3개 라인) ----------
     private fun setupChart() {
-        // ... (차트 설정 로직은 동일)
-        // 기존 코드 유지
         val setW1 = LineDataSet(mutableListOf<Entry>(), "W1(g)").apply {
             lineWidth = 2f
             color = Color.parseColor("#1E88E5")
@@ -475,7 +425,7 @@ class MainActivity : AppCompatActivity() {
             data = LineData(setW1, setW2, setW3)
 
             description.isEnabled = false
-            legend.isEnabled = true
+            legend.isEnabled = true         // 어떤 색이 W1/W2/W3인지 보이게
 
             setDrawGridBackground(false)
             setTouchEnabled(false)
@@ -546,12 +496,8 @@ class MainActivity : AppCompatActivity() {
         txtMotorState?.text  = "게이트: ${if (actuatorExtended) "게이트 오픈" else "게이트 클로즈"}"
         txtLastUpdated?.text = "마지막 수신: ${formatTime(now)}"
 
-        // 🔥 수정: 스위치 대신 토글 그룹 동기화
-        if (autoMode) {
-            toggleMode.check(R.id.btnModeAuto)
-        } else {
-            toggleMode.check(R.id.btnModeManual)
-        }
+        // BLE 상태에 맞춰 스위치 동기화 (WiFi도 autoMode 그대로 반영)
+        switchAuto.isChecked = autoMode
 
         val (label, color) = when {
             overloaded -> "위험" to Color.parseColor("#D32F2F")
@@ -566,7 +512,7 @@ class MainActivity : AppCompatActivity() {
         // 그래프: W1/W2/W3 3개 라인
         appendPressureValue(w1, w2, w3)
 
-        // 과부하 알람
+        // 과부하 알람 (아무 소스나 기준)
         if (overloaded) {
             pushPresetAlarm(
                 level = AlarmLevel.WARN,
@@ -597,9 +543,12 @@ class MainActivity : AppCompatActivity() {
                         Log.d("WIFI_STATUS", "응답: $body")
 
                         val json = JSONObject(body)
-                        val w1 = json.optDouble("W1", 0.0).toFloat().coerceAtLeast(0f)
-                        val w2 = json.optDouble("W2", 0.0).toFloat().coerceAtLeast(0f)
-                        val w3 = json.optDouble("W3", 0.0).toFloat().coerceAtLeast(0f)
+                        val w1 = json.optDouble("W1", 0.0).toFloat()
+                        val w2 = json.optDouble("W2", 0.0).toFloat()
+                        val w3 = json.optDouble("W3", 0.0).toFloat()
+                        val over1 = json.optInt("over1", 0) == 1
+                        val over2 = json.optInt("over2", 0) == 1
+                        val over3 = json.optInt("over3", 0) == 1
                         val overloaded = json.optInt("overloaded", 0) == 1
                         val autoMode = json.optInt("autoMode", 1) == 1
                         val actuatorExtended = json.optInt("actuatorState", 0) == 1
@@ -641,7 +590,7 @@ class MainActivity : AppCompatActivity() {
         if (currentMode == ConnectionMode.BLE) return
         currentMode = ConnectionMode.BLE
 
-        // BLE 모드에서는 WiFi 폴링 중단 (펌웨어도 AP 끔 예정)
+        // BLE 모드에서는 WiFi 폴링 중단 (펌웨어도 AP 끔)
         stopWifiStatusLoop()
         chipRtt.text = "BLE 모드 사용 중"
     }
@@ -660,10 +609,8 @@ class MainActivity : AppCompatActivity() {
     // ---------- 그래프에 점 추가 (W1/W2/W3) ----------
     private fun appendPressureValue(w1: Float, w2: Float, w3: Float) {
         val now = System.currentTimeMillis()
-        if (now - lastChartUpdateMs < CHART_INTERVAL_MS) return // <- 이 부분이 갱신을 막는 주범
-        lastChartUpdateMs = now // 이제 갱신하므로 시간을 업데이트합니다.
-
-        Log.d("CHART_DEBUG", "appendPressureValue() W1=$w1, W2=$w2, W3=$w3")
+        if (now - lastChartUpdateMs < CHART_INTERVAL_MS) return
+        lastChartUpdateMs = now
 
         pressureX += 1f
 
@@ -739,8 +686,6 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         disconnectBle()
         stopWifiStatusLoop()
-        rssiJob?.cancel()
-        rssiJob = null
     }
 
     // -------------------- View 바인딩 --------------------
@@ -749,14 +694,9 @@ class MainActivity : AppCompatActivity() {
         btnConnect    = findViewById(R.id.btnConnect)
         btnDisconnect = findViewById(R.id.btnDisconnect)
 
-        // 🔥 수정: switchAuto 제거 및 토글 그룹/버튼 추가
-        toggleMode    = findViewById(R.id.toggleMode)
-        btnModeManual = findViewById(R.id.btnModeManual)
-        btnModeAuto   = findViewById(R.id.btnModeAuto)
-
+        switchAuto    = findViewById(R.id.switchAuto)
         btnGateOpen   = findViewById(R.id.btnGateOpen)
         btnGateClose  = findViewById(R.id.btnGateClose)
-        btnGateStop   = findViewById(R.id.btnGateStop) // 🔥 강제 정지 버튼 추가
 
         btnPresetLoad    = findViewById(R.id.btnPresetLoad)
         btnPresetDensity = findViewById(R.id.btnPresetDensity)
@@ -767,7 +707,6 @@ class MainActivity : AppCompatActivity() {
 
         chipBattery = findViewById(R.id.chipBattery)
 
-        txtDeviceTitle  = findViewById(R.id.txtDeviceTitle)
         txtDeviceInfo   = findViewById(R.id.txtDeviceInfo)
         txtSensorStatus = findViewById(R.id.txtSensorStatus)
 
@@ -875,76 +814,37 @@ class MainActivity : AppCompatActivity() {
             true
         }
 
-        // 🔥 수정: 토글 버튼 그룹 리스너 추가 (AUTO/MANUAL 모드 제어)
-        toggleMode.addOnButtonCheckedListener { _, checkedId, isChecked ->
-            if (!isChecked) return@addOnButtonCheckedListener // 버튼이 선택된(checked) 경우에만 처리
-
-            val cmd = when (checkedId) {
-                R.id.btnModeAuto -> "MODE_AUTO"
-                R.id.btnModeManual -> "MODE_MANUAL"
-                else -> return@addOnButtonCheckedListener
+        // 모드 스위치 → ESP32로 AUTO / MANUAL 전송
+        switchAuto.setOnCheckedChangeListener { _, isChecked ->
+            if (!hasBlePermissions()) {
+                perm.requestBlePermissions()
+                switchAuto.isChecked = !isChecked
+                return@setOnCheckedChangeListener
             }
 
-            when (currentMode) {
-                ConnectionMode.BLE -> {
-                    if (!hasBlePermissions()) {
-                        perm.requestBlePermissions()
-                        return@addOnButtonCheckedListener
-                    }
-                    sendBleCommand(cmd)
-                    toast("${if (cmd == "MODE_AUTO") "AUTO" else "MANUAL"} 모드 전환 요청 (BLE)")
-                }
-                ConnectionMode.WIFI -> {
-                    sendWifiCommand(cmd)
-                    toast("${if (cmd == "MODE_AUTO") "AUTO" else "MANUAL"} 모드 전환 요청 (WiFi)")
-                }
+            if (isChecked) {
+                sendBleCommand("MODE_AUTO")
+                toast("AUTO 모드 전환 요청")
+            } else {
+                sendBleCommand("MODE_MANUAL")
+                toast("MANUAL 모드 전환 요청")
             }
         }
 
-        // 게이트 제어 버튼 (BLE + WiFi 겸용)
+        // 게이트 제어 버튼
         btnGateOpen.setOnClickListener {
-            when (currentMode) {
-                ConnectionMode.BLE -> {
-                    if (hasBlePermissions()) {
-                        sendBleCommand("EXTEND")
-                    } else {
-                        perm.requestBlePermissions()
-                    }
-                }
-                ConnectionMode.WIFI -> {
-                    sendWifiCommand("EXTEND")
-                }
+            if (hasBlePermissions()) {
+                sendBleCommand("EXTEND")
+            } else {
+                perm.requestBlePermissions()
             }
         }
 
         btnGateClose.setOnClickListener {
-            when (currentMode) {
-                ConnectionMode.BLE -> {
-                    if (hasBlePermissions()) {
-                        sendBleCommand("RETRACT")
-                    } else {
-                        perm.requestBlePermissions()
-                    }
-                }
-                ConnectionMode.WIFI -> {
-                    sendWifiCommand("RETRACT")
-                }
-            }
-        }
-
-        // 🔥 강제 정지 버튼 클릭 리스너 추가
-        btnGateStop.setOnClickListener {
-            when (currentMode) {
-                ConnectionMode.BLE -> {
-                    if (hasBlePermissions()) {
-                        sendBleCommand("STOP")
-                    } else {
-                        perm.requestBlePermissions()
-                    }
-                }
-                ConnectionMode.WIFI -> {
-                    sendWifiCommand("STOP")
-                }
+            if (hasBlePermissions()) {
+                sendBleCommand("RETRACT")
+            } else {
+                perm.requestBlePermissions()
             }
         }
 
@@ -1025,58 +925,6 @@ class MainActivity : AppCompatActivity() {
         ) == PackageManager.PERMISSION_GRANTED
 
         return scanGranted && connectGranted
-    }
-
-    // -------------------- ✅ WiFi /cmd 명령 전송 --------------------
-    private fun sendWifiCommand(cmd: String) {
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                // ESP32 펌웨어: /cmd?mode=MANUAL&action=EXTEND 형식 기대
-                val urlStr = when (cmd) {
-                    // 모드 전환
-                    "MODE_AUTO"   -> "http://$WIFI_AP_IP/cmd?mode=AUTO"
-                    "MODE_MANUAL" -> "http://$WIFI_AP_IP/cmd?mode=MANUAL"
-
-                    // 게이트 동작
-                    "EXTEND"      -> "http://$WIFI_AP_IP/cmd?action=EXTEND"
-                    "RETRACT"     -> "http://$WIFI_AP_IP/cmd?action=RETRACT"
-                    "STOP"        -> "http://$WIFI_AP_IP/cmd?action=STOP"
-
-                    else          -> "http://$WIFI_AP_IP/cmd"
-                }
-
-                val url = URL(urlStr)
-                val conn = (url.openConnection() as HttpURLConnection).apply {
-                    connectTimeout = 1000
-                    readTimeout = 1000
-                    requestMethod = "GET"
-                }
-
-                val code = conn.responseCode
-                conn.disconnect()
-
-                withContext(Dispatchers.Main) {
-                    if (code == 200) {
-                        toast("WiFi 명령 전송 성공: $cmd")
-                        chipRtt.text = "WiFi 명령 전송: $cmd"
-
-                        // 펌웨어 정책에 따라 HTTP 요청 성공 시 BLE는 강제 종료됨.
-                        // 앱 상태 동기화를 위해 명시적으로 해제.
-                        if (bluetoothGatt != null) {
-                            disconnectBle()
-                            toast("BLE 연결이 서버 요청에 의해 해제됨")
-                        }
-
-                    } else {
-                        toast("WiFi 명령 실패: HTTP $code")
-                    }
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    toast("WiFi 명령 오류: ${e.message}")
-                }
-            }
-        }
     }
 
     // -------------------- BLE 동작 --------------------
@@ -1173,8 +1021,6 @@ class MainActivity : AppCompatActivity() {
         stopBleScan()
         bluetoothGatt?.close()
         bluetoothGatt = null
-        rssiJob?.cancel()
-        rssiJob = null
     }
 
     // -------------------- 기타 헬퍼 --------------------
@@ -1212,12 +1058,10 @@ class MainActivity : AppCompatActivity() {
                 detail = detail
             )
         )
-        // ✅ 수정된 부분: Snackbar 대신 Toast 메시지를 한 번만 표시합니다.
-        //    Snackbar.make(...)로 알람 목록을 스크롤하는 코드를 제거했습니다.
-        toast("새로운 알람 생성됨: $title")
-
-        // 알람이 목록에 추가되므로, 필요하다면 스크롤은 유지할 수 있습니다.
-        recyclerAlarms?.scrollToPosition(0)
+        recyclerAlarms?.let { rv ->
+            Snackbar.make(rv, "테스트 알림 생성: $title", Snackbar.LENGTH_SHORT).show()
+            rv.scrollToPosition(0)
+        }
     }
 
     private fun hasSerial(): Boolean =
@@ -1235,10 +1079,7 @@ class MainActivity : AppCompatActivity() {
     // -------------------- RSSI 루프 --------------------
     @SuppressLint("MissingPermission")
     private fun startRssiLoop() {
-        // 기존에 돌고 있던 RSSI 루프 있으면 정리
-        rssiJob?.cancel()
-
-        rssiJob = lifecycleScope.launch(Dispatchers.IO) {
+        lifecycleScope.launch(Dispatchers.IO) {
             while (isActive) {
                 bluetoothGatt?.let { gatt ->
                     val ok = gatt.readRemoteRssi()
