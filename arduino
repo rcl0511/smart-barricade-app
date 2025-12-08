@@ -24,26 +24,26 @@ bool g_over2 = false;
 bool g_over3 = false;
 bool g_overloaded = false;
 bool g_autoModeHttp = true;
-int g_actuatorState = 0; // 0: RETRACT (닫힘), 1: EXTEND (열림), -1: STOP (정지)
+// g_actuatorState: 0: RETRACT, 1: EXTEND, -1: STOP (모두 OFF), -2: MANUAL_IN_CONTROL (개별 ON)
+int g_actuatorState = 0;
 
 // 1) HX711 & 보정값 설정
 const int LOADCELL1_DOUT_PIN = 12;
-const int LOADCELL1_SCK_PIN  = 13;
+const int LOADCELL1_SCK_PIN = 13;
 const int LOADCELL2_DOUT_PIN = 4;
-const int LOADCELL2_SCK_PIN  = 5;
+const int LOADCELL2_SCK_PIN = 5;
 const int LOADCELL3_DOUT_PIN = 16;
-const int LOADCELL3_SCK_PIN  = 17;
+const int LOADCELL3_SCK_PIN = 17;
 
 HX711 scale1, scale2, scale3;
 
-const float SET_SCALE1 = -9.425f;
-const float SET_SCALE2 = -9.4f;
+const float SET_SCALE1 = 9.425f;
+const float SET_SCALE2 = 9.4f;
 const float SET_SCALE3 = 10.6f;
 
 const bool USE_LOADCELL1 = true;
 const bool USE_LOADCELL2 = true;
 const bool USE_LOADCELL3 = true;
-
 
 // 2) 릴레이 핀 설정
 const int IN1 = 33;
@@ -53,13 +53,12 @@ const int IN4 = 14;
 
 #define RELAY_ACTIVE_LOW 1
 #if RELAY_ACTIVE_LOW
-const int RELAY_ON  = LOW;
+const int RELAY_ON = LOW;
 const int RELAY_OFF = HIGH;
 #else
-const int RELAY_ON  = HIGH;
+const int RELAY_ON = HIGH;
 const int RELAY_OFF = LOW;
 #endif
-
 
 const float THRESHOLD = 10000.0f;
 const int NUM_SAMPLES = 5;
@@ -68,81 +67,87 @@ const float ZERO_DEADZONE = 200.0f;
 // -----------------------------------------------------
 // 4) 상태 변수
 // -----------------------------------------------------
-int actuatorState = 0; // 0: RETRACT (닫힘), 1: EXTEND (열림), -1: STOP (정지)
+// actuatorState: 0: RETRACT, 1: EXTEND, -1: STOP (모두 OFF), -2: MANUAL_IN_CONTROL (개별 ON)
+int actuatorState = 0;
 bool autoMode = true;
 const unsigned long EXTEND_HOLD_MS = 10UL * 1000UL;
 unsigned long extendHoldUntil = 0;
 
 void startAP();
 void actuatorStop();
+void actuatorRetract();
+void actuatorExtend();
 
 // =====================================================
 // 유틸 함수
 // =====================================================
 float medianFilter(float arr[], int n) {
-    for (int i = 0; i < n - 1; i++)
-        for (int j = i + 1; j < n; j++)
-            if (arr[j] < arr[i]) {
-                float t = arr[i];
-                arr[i] = arr[j];
-                arr[j] = t;
-            }
-    return arr[n / 2];
+  for (int i = 0; i < n - 1; i++)
+    for (int j = i + 1; j < n; j++)
+      if (arr[j] < arr[i]) {
+        float t = arr[i];
+        arr[i] = arr[j];
+        arr[j] = t;
+      }
+  return arr[n / 2];
 }
 
 float applyDeadzone(float v) {
-    if (v > -ZERO_DEADZONE && v < ZERO_DEADZONE) return 0.0f;
-    return v;
+  if (v > -ZERO_DEADZONE && v < ZERO_DEADZONE) return 0.0f;
+  return v;
 }
 
 void printRelayState(const char* label) {
-    Serial.print(label);
-    Serial.print(" IN1="); Serial.print(digitalRead(IN1));
-    Serial.print(" IN2="); Serial.print(digitalRead(IN2));
-    Serial.print(" IN3="); Serial.print(digitalRead(IN3));
-    Serial.print(" IN4="); Serial.println(digitalRead(IN4));
+  Serial.print(label);
+  Serial.print(" IN1=");
+  Serial.print(digitalRead(IN1));
+  Serial.print(" IN2=");
+  Serial.print(digitalRead(IN2));
+  Serial.print(" IN3=");
+  Serial.print(digitalRead(IN3));
+  Serial.print(" IN4=");
+  Serial.println(digitalRead(IN4));
 }
 
 void setModeAuto(const char* reason) {
-    if (!autoMode) Serial.printf("### MODE -> AUTO (%s)\n", reason);
-    autoMode = true;
-    g_autoModeHttp = true;
-    extendHoldUntil = 0;
+  if (!autoMode) Serial.printf("### MODE -> AUTO (%s)\n", reason);
+  autoMode = true;
+  g_autoModeHttp = true;
+  extendHoldUntil = 0;
 }
 
-// 수정된 setModeManual: doStop=true일 때 RETRACT 상태로 전환
+// setModeManual: doStop=true일 때 RETRACT 상태로 전환 (초기 설정 유지)
 void setModeManual(const char* reason, bool doStop) {
-    if (autoMode) Serial.printf("### MODE -> MANUAL (%s)\n", reason);
-    autoMode = false;
-    g_autoModeHttp = false;
-    extendHoldUntil = 0;
+  if (autoMode) Serial.printf("### MODE -> MANUAL (%s)\n", reason);
+  autoMode = false;
+  g_autoModeHttp = false;
+  extendHoldUntil = 0;
 
-    if (doStop) {
-        // 기존: STOP (ALL OFF)
-        // 수정: RETRACT (IN1, IN3 ON) 상태로 전환하여 기본 상태 유지
-        actuatorStop(); // 일단 정지하여 모터 안전 보장
-        // 강제 정지 후 RETRACT 전환 시에도 릴레이 안정화 지연이 필요할 수 있습니다.
-        delay(10); 
-        
-        digitalWrite(IN1, RELAY_ON);
-        digitalWrite(IN3, RELAY_ON);
+  if (doStop) {
+    // 기존 RETRACT 상태로 전환하여 기본 상태 유지
+    actuatorStop();
+    delay(10);
 
-        actuatorState = 0; // RETRACT 상태
-        g_actuatorState = 0;
-        printRelayState("-> Actuator: RETRACT (Manual Mode Start)");
-    }
+    // 릴레이 1, 3을 ON하여 RETRACT 상태를 명시적으로 유지 (setup()과 동일)
+    digitalWrite(IN1, RELAY_ON);
+    digitalWrite(IN3, RELAY_ON);
+
+    actuatorState = 0;  // RETRACT 상태
+    g_actuatorState = 0;
+    printRelayState("-> Actuator: RETRACT (Manual Mode Start)");
+  }
 }
 
 // =====================================================
-// 릴레이 제어 (actuatorStop() 재추가)
+// 릴레이 제어 (기존 복합 제어 유지)
 // =====================================================
 
 void actuatorStop() {
-    if (actuatorState == -1) return; // 이미 정지 상태라면 리턴
-
+  // 💡 수정: actuatorState가 이미 -1 (STOP)이 아니라면 실행
+  if (actuatorState != -1) {
     actuatorState = -1;
     g_actuatorState = -1;
-    
+
     // 모든 릴레이를 OFF하여 모터 정지
     digitalWrite(IN1, RELAY_OFF);
     digitalWrite(IN2, RELAY_OFF);
@@ -150,53 +155,132 @@ void actuatorStop() {
     digitalWrite(IN4, RELAY_OFF);
 
     printRelayState("-> Actuator: STOP");
+  }
 }
 
-
 void actuatorRetract() {
-    // 이미 RETRACT(0) 상태라면 리턴하여 불필요한 릴레이 동작을 막음
-    if (actuatorState == 0) return; 
-    
-    actuatorStop(); // 동작 전 반드시 정지
+  // 이미 RETRACT(0) 상태라면 리턴하여 불필요한 릴레이 동작을 막음
+  if (actuatorState == 0) return;
 
-    // 🛑 릴레이의 기계적 접점 안정화 시간 (10ms) 추가
-    delay(10); 
-    
-    actuatorState = 0;
-    g_actuatorState = 0;
+  actuatorStop();  // 동작 전 반드시 정지 (actuatorState는 -1이 됨)
 
-    // RETRACT (닫힘) 시작
-    digitalWrite(IN1, RELAY_ON);
-    digitalWrite(IN3, RELAY_ON);
+  // 🛑 릴레이의 기계적 접점 안정화 시간 (10ms) 추가
+  delay(10);
 
-    printRelayState("-> Actuator: close (1,3 ON)");
+  actuatorState = 0;
+  g_actuatorState = 0;
+
+  // RETRACT (닫힘) 시작 (IN1, IN3 ON)
+  digitalWrite(IN1, RELAY_ON);
+  digitalWrite(IN3, RELAY_ON);
+
+  printRelayState("-> Actuator: close (1,3 ON)");
 }
 
 void actuatorExtend() {
-    // 이미 EXTEND(1) 상태라면 리턴하여 불필요한 릴레이 동작을 막음
-    if (actuatorState == 1) return;
-    
-    actuatorStop(); // 동작 전 반드시 정지
-    
-    // 🛑 릴레이의 기계적 접점 안정화 시간 (10ms) 추가
-    delay(10); 
-    
-    actuatorState = 1;
-    g_actuatorState = 1;
+  // 이미 EXTEND(1) 상태라면 리턴하여 불필요한 릴레이 동작을 막음
+  if (actuatorState == 1) return;
 
-    // EXTEND (열림) 시작
-    digitalWrite(IN2, RELAY_ON);
-    digitalWrite(IN4, RELAY_ON);
+  actuatorStop();  // 동작 전 반드시 정지 (actuatorState는 -1이 됨)
 
-    printRelayState("-> Actuator: open (2,4 ON)");
+  // 🛑 릴레이의 기계적 접점 안정화 시간 (10ms) 추가
+  delay(10);
+
+  actuatorState = 1;
+  g_actuatorState = 1;
+
+  // EXTEND (열림) 시작 (IN2, IN4 ON)
+  digitalWrite(IN2, RELAY_ON);
+  digitalWrite(IN4, RELAY_ON);
+
+  printRelayState("-> Actuator: open (2,4 ON)");
+}
+
+// =====================================================
+// 📌 개별 제어 명령 함수 (INx_ON)
+// =====================================================
+
+// 1. IN1 ON (Actuator Retract)
+void actuatorIn1On() {
+  actuatorStop();  // 안전을 위해 전체 정지 (모두 OFF, actuatorState = -1)
+  delay(10);
+  digitalWrite(IN1, RELAY_ON);  // IN1만 ON
+  digitalWrite(IN2, RELAY_OFF);
+  digitalWrite(IN3, RELAY_OFF);
+  digitalWrite(IN4, RELAY_OFF);
+
+  // 💡 중요: 상태를 -2로 변경하여 다음 Stop 명령이 들어올 수 있도록 준비
+  actuatorState = -2;
+  g_actuatorState = -2;
+
+  Serial.println("-> IN1 ON: Actuator Retract");
+  printRelayState("-> IN1 ON");
+}
+
+// 2. IN2 ON (Actuator Extend)
+void actuatorIn2On() {
+  actuatorStop();
+  delay(10);
+  digitalWrite(IN1, RELAY_OFF);
+  digitalWrite(IN2, RELAY_ON);  // IN2만 ON
+  digitalWrite(IN3, RELAY_OFF);
+  digitalWrite(IN4, RELAY_OFF);
+
+  actuatorState = -2;
+  g_actuatorState = -2;
+
+  Serial.println("-> IN2 ON: Actuator Extend");
+  printRelayState("-> IN2 ON");
+}
+
+// 3. IN3 ON (LED Close)
+void actuatorIn3On() {
+  actuatorStop();
+  delay(10);
+  digitalWrite(IN1, RELAY_OFF);
+  digitalWrite(IN2, RELAY_OFF);
+  digitalWrite(IN3, RELAY_ON);  // IN3만 ON
+  digitalWrite(IN4, RELAY_OFF);
+
+  actuatorState = -2;
+  g_actuatorState = -2;
+
+  Serial.println("-> IN3 ON: LED Retract/Close");
+  printRelayState("-> IN3 ON");
+}
+
+// 4. IN4 ON (LED Open)
+void actuatorIn4On() {
+  actuatorStop();
+  delay(10);
+  digitalWrite(IN1, RELAY_OFF);
+  digitalWrite(IN2, RELAY_OFF);
+  digitalWrite(IN3, RELAY_OFF);
+  digitalWrite(IN4, RELAY_ON);  // IN4만 ON
+
+  actuatorState = -2;
+  g_actuatorState = -2;
+
+  Serial.println("-> IN4 ON: LED Extend/Open");
+  printRelayState("-> IN4 ON");
+}
+
+// 5. Loadcell Tare (Offset 초기화)
+void tareAllLoadcells() {
+  Serial.println("-> Loadcell Tare (Offset Reset) 시작...");
+  delay(500);
+  if (USE_LOADCELL1 && scale1.is_ready()) scale1.tare(10);
+  if (USE_LOADCELL2 && scale2.is_ready()) scale2.tare(10);
+  if (USE_LOADCELL3 && scale3.is_ready()) scale3.tare(10);
+  Serial.println("-> Loadcell Tare 완료 (Unready 센서는 건너뜀)");
 }
 
 // =====================================================
 // BLE 관련
 // =====================================================
-#define SERVICE_UUID      "12345678-1234-1234-1234-1234567890ab"
-#define CHAR_UUID_NOTIFY  "abcd1234-1234-5678-9999-abcdef123456"
-#define CHAR_UUID_WRITE   "abcd0002-1234-5678-9999-abcdef123456"
+#define SERVICE_UUID "12345678-1234-1234-1234-1234567890ab"
+#define CHAR_UUID_NOTIFY "abcd1234-1234-5678-9999-abcdef123456"
+#define CHAR_UUID_WRITE "abcd0002-1234-5678-9999-abcdef123456"
 
 BLEServer* pServer = nullptr;
 BLECharacteristic* pNotifyChar = nullptr;
@@ -206,284 +290,379 @@ bool deviceConnected = false;
 bool oldDeviceConnected = false;
 
 class MyServerCallbacks : public BLEServerCallbacks {
-    void onConnect(BLEServer*) override {
-        deviceConnected = true;
-        Serial.println("BLE Central 연결됨");
-        WiFi.softAPdisconnect(true);
-    }
-    void onDisconnect(BLEServer*) override {
-        deviceConnected = false;
-        Serial.println("BLE Central 해제 -> AP 재시작");
-        startAP();
-    }
+  void onConnect(BLEServer*) override {
+    deviceConnected = true;
+    Serial.println("BLE Central 연결됨");
+    WiFi.softAPdisconnect(true);
+  }
+  void onDisconnect(BLEServer*) override {
+    deviceConnected = false;
+    Serial.println("BLE Central 해제 -> AP 재시작");
+    startAP();
+  }
 };
 
-// 수정: AUTO 모드에서 Action 명령 차단 및 STOP 명령 actuatorStop() 사용
+// CmdCallback: BLE 명령 처리 (INTx 및 INx_ON 모두 처리)
 class CmdCallback : public BLECharacteristicCallbacks {
-    void onWrite(BLECharacteristic* pChar) override {
-        String cmd = String(pChar->getValue().c_str());
-        cmd.trim(); cmd.toUpperCase();
+  void onWrite(BLECharacteristic* pChar) override {
+    String cmd = String(pChar->getValue().c_str());
+    cmd.trim();
+    cmd.toUpperCase();
 
-        Serial.printf("BLE CMD: [%s]\n", cmd.c_str());
+    Serial.printf("BLE CMD: [%s]\n", cmd.c_str());
 
-        if (cmd == "MODE_AUTO") setModeAuto("BLE");
-        else if (cmd == "MODE_MANUAL") setModeManual("BLE", true);
-        // MANUAL 모드일 때만 액추에이터 제어 허용
-        else if (!autoMode && cmd == "EXTEND") { setModeManual("BLE EXTEND", false); actuatorExtend(); }
-        else if (!autoMode && cmd == "RETRACT") { setModeManual("BLE RETRACT", false); actuatorRetract(); }
-        else if (!autoMode && cmd == "STOP") { setModeManual("BLE STOP", false); 
-            actuatorStop(); // actuatorStop() 함수 사용
-        }
-        else if (autoMode && (cmd == "EXTEND" || cmd == "RETRACT" || cmd == "STOP")) {
-            Serial.println("-> BLE CMD: AUTO 모드에서 액추에이터 제어 무시됨.");
-        }
+    if (cmd == "MODE_AUTO") setModeAuto("BLE");
+    else if (cmd == "MODE_MANUAL") setModeManual("BLE", true);
+
+    // TARE는 모드와 관계없이 허용 (is_ready() 상태인 센서만 Tare)
+    else if (cmd == "TARE") tareAllLoadcells();
+
+    // 릴레이 및 액추에이터 제어는 MANUAL 모드일 때만 허용
+    else if (!autoMode) {
+      setModeManual("BLE ACTION", false);  // MANUAL 모드 유지
+
+      // 기존 복합 액추에이터 제어
+      if (cmd == "EXTEND") actuatorExtend();
+      else if (cmd == "RETRACT") actuatorRetract();
+      else if (cmd == "STOP") actuatorStop();
+
+      // 🔥 INT 명령 처리 추가 (앱이 INTx를 보낼 경우)
+      else if (cmd == "INT1") actuatorIn1On();
+      else if (cmd == "INT2") actuatorIn2On();
+      else if (cmd == "INT3") actuatorIn3On();
+      else if (cmd == "INT4") actuatorIn4On();
+      // -----------------------------------------------------
+
+      // 📌 INx_ON 명령 처리 로직 (앱이 INx_ON을 보낼 경우)
+      else if (cmd == "IN1_ON") actuatorIn1On();
+      else if (cmd == "IN2_ON") actuatorIn2On();
+      else if (cmd == "IN3_ON") actuatorIn3On();
+      else if (cmd == "IN4_ON") actuatorIn4On();
+    } else if (autoMode && (cmd == "EXTEND" || cmd == "RETRACT" || cmd == "STOP" || cmd == "IN1_ON" || cmd == "IN2_ON" || cmd == "IN3_ON" || cmd == "IN4_ON" || cmd == "INT1" || cmd == "INT2" || cmd == "INT3" || cmd == "INT4")) {
+      Serial.println("-> BLE CMD: AUTO 모드에서 액추에이터/릴레이 제어 무시됨.");
     }
+  }
 };
 
 void disconnectBleForWifi() {
-    if (deviceConnected && pServer) {
-        Serial.println("[HTTP] BLE Disconnect");
-        pServer->disconnect(0);
-    }
+  if (deviceConnected && pServer) {
+    Serial.println("[HTTP] BLE Disconnect");
+    pServer->disconnect(0);
+  }
 }
 
 // =====================================================
-// HTTP 핸들러 (handleCmd 수정됨: actuatorStop() 사용)
+// HTTP 핸들러 (INTx 및 INx_ON 모두 처리)
 // =====================================================
 void handleStatus() {
-    disconnectBleForWifi(); 
-    String json = "{";
-    json += "\"W1\":" + String(g_lastW1, 1) + ",";
-    json += "\"W2\":" + String(g_lastW2, 1) + ",";
-    json += "\"W3\":" + String(g_lastW3, 1) + ",";
-    json += "\"over1\":" + String(g_over1) + ",";
-    json += "\"over2\":" + String(g_over2) + ",";
-    json += "\"over3\":" + String(g_over3) + ",";
-    json += "\"overloaded\":" + String(g_overloaded) + ",";
-    json += "\"autoMode\":" + String(g_autoModeHttp) + ",";
-    json += "\"actuatorState\":" + String(g_actuatorState);
-    json += "}";
-    server.send(200, "application/json", json);
+  disconnectBleForWifi();
+  String json = "{";
+  json += "\"W1\":" + String(g_lastW1, 1) + ",";
+  json += "\"W2\":" + String(g_lastW2, 1) + ",";
+  json += "\"W3\":" + String(g_lastW3, 1) + ",";
+  json += "\"over1\":" + String(g_over1) + ",";
+  json += "\"over2\":" + String(g_over2) + ",";
+  json += "\"over3\":" + String(g_over3) + ",";
+  json += "\"overloaded\":" + String(g_overloaded) + ",";
+  json += "\"autoMode\":" + String(g_autoModeHttp) + ",";
+  json += "\"actuatorState\":" + String(g_actuatorState);
+  json += "}";
+  server.send(200, "application/json", json);
 }
 
 void handleCmd() {
-    disconnectBleForWifi();
+  disconnectBleForWifi();
 
-    String mode    = server.arg("mode");    mode.toUpperCase();
-    String action = server.arg("action"); action.toUpperCase();
+  String mode = server.arg("mode");
+  mode.toUpperCase();
+  String action = server.arg("action");
+  action.toUpperCase();
 
-    // 1. 모드 변경 처리 (mode 인자가 있을 때만 실행)
-    if (mode == "AUTO") setModeAuto("HTTP /cmd");
-    else if (mode == "MANUAL") setModeManual("HTTP /cmd", true);
+  // 1. 모드 변경 처리 (mode 인자가 있을 때만 실행)
+  if (mode == "AUTO") setModeAuto("HTTP /cmd");
+  else if (mode == "MANUAL") setModeManual("HTTP /cmd", true);
 
-    // 2. 액추에이터 동작 처리 (action 인자가 있을 때만 실행)
-    if (action.length() > 0) {
-        if (!autoMode) { // MANUAL 모드일 때만 액추에이터 제어 허용
-            setModeManual("HTTP ACTION", false); // MANUAL 모드 유지 (doStop=false)
-            if (action == "EXTEND") actuatorExtend();
-            else if (action == "RETRACT") actuatorRetract();
-            else if (action == "STOP") actuatorStop(); // actuatorStop() 함수 사용
-        } else {
-            Serial.println("-> HTTP CMD: AUTO 모드에서 액추에이터 제어 무시됨.");
-        }
+  // 2. 액추에이터 및 기타 동작 처리 (action 인자가 있을 때만 실행)
+  if (action.length() > 0) {
+    // TARE는 모드와 관계없이 허용
+    if (action == "TARE") {
+      tareAllLoadcells();
     }
+    // 릴레이 및 액추에이터 제어는 MANUAL 모드일 때만 허용
+    else if (!autoMode) {
+      setModeManual("HTTP ACTION", false);  // MANUAL 모드 유지 (doStop=false)
 
-    String json = "{";
-    json += "\"ok\":1,";
-    json += "\"mode\":\"" + String(autoMode ? "AUTO" : "MANUAL") + "\",";
-    json += "\"action\":\"" + action + "\",";
-    json += "\"actuatorState\":" + String(g_actuatorState);
-    json += "}";
+      // 기존 복합 액추에이터 제어
+      if (action == "EXTEND") actuatorExtend();
+      else if (action == "RETRACT") actuatorRetract();
+      else if (action == "STOP") actuatorStop();
 
-    server.send(200, "application/json", json);
+      // 🔥 INT 명령 처리 추가 (앱이 INTx를 보낼 경우)
+      else if (action == "INT1") actuatorIn1On();
+      else if (action == "INT2") actuatorIn2On();
+      else if (action == "INT3") actuatorIn3On();
+      else if (action == "INT4") actuatorIn4On();
+      // -----------------------------------------------------
+
+      // 📌 INx_ON 명령 처리 로직 (앱이 INx_ON을 보낼 경우)
+      else if (action == "IN1_ON") actuatorIn1On();
+      else if (action == "IN2_ON") actuatorIn2On();
+      else if (action == "IN3_ON") actuatorIn3On();
+      else if (action == "IN4_ON") actuatorIn4On();
+    } else {
+      Serial.println("-> HTTP CMD: AUTO 모드에서 액추에이터/릴레이 제어 무시됨.");
+    }
+  }
+
+  String json = "{";
+  json += "\"ok\":1,";
+  json += "\"mode\":\"" + String(autoMode ? "AUTO" : "MANUAL") + "\",";
+  json += "\"action\":\"" + action + "\",";
+  json += "\"actuatorState\":" + String(g_actuatorState);
+  json += "}";
+
+  server.send(200, "application/json", json);
 }
 
 void startWebServer() {
-    server.on("/status", HTTP_ANY, handleStatus);
-    server.on("/cmd",    HTTP_ANY, handleCmd);
-    server.begin();
-    Serial.println("-> WebServer 시작 (/status, /cmd)");
+  server.on("/status", HTTP_ANY, handleStatus);
+  server.on("/cmd", HTTP_ANY, handleCmd);
+  server.begin();
+  Serial.println("-> WebServer 시작 (/status, /cmd)");
 }
 
 // =====================================================
 // WiFi AP
 // =====================================================
 void startAP() {
-    Serial.println("-> AP 모드 시작...");
-    WiFi.mode(WIFI_AP);
-    bool ok = WiFi.softAP(AP_SSID, AP_PASS);
+  Serial.println("-> AP 모드 시작...");
+  WiFi.mode(WIFI_AP);
+  bool ok = WiFi.softAP(AP_SSID, AP_PASS);
 
-    if (ok) {
-        Serial.println("-> AP 활성화됨");
-        Serial.printf("SSID: %s\nPASS: %s\n", AP_SSID, AP_PASS);
-        Serial.print("AP IP: "); Serial.println(WiFi.softAPIP());
-    } else Serial.println("-> AP 시작 실패");
+  if (ok) {
+    Serial.println("-> AP 활성화됨");
+    Serial.printf("SSID: %s\nPASS: %s\n", AP_SSID, AP_PASS);
+    Serial.print("AP IP: ");
+    Serial.println(WiFi.softAPIP());
+  } else Serial.println("-> AP 시작 실패");
 }
 
 // =====================================================
 // SETUP
 // =====================================================
 void setup() {
-    Serial.begin(115200);
-    delay(1000);
+  Serial.begin(115200);
+  delay(1000);
 
-    pinMode(IN1, OUTPUT); pinMode(IN2, OUTPUT);
-    pinMode(IN3, OUTPUT); pinMode(IN4, OUTPUT);
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+  pinMode(IN3, OUTPUT);
+  pinMode(IN4, OUTPUT);
 
-    // 초기 상태: RETRACT (IN1, IN3 ON) 상태로 시작 (기본 상태)
-    digitalWrite(IN2, RELAY_OFF);
-    digitalWrite(IN4, RELAY_OFF);
-    digitalWrite(IN1, RELAY_ON);
-    digitalWrite(IN3, RELAY_ON);
-    
-    actuatorState = 0; // 초기 상태를 RETRACT(0)로 설정
+  // 초기 상태: RETRACT (IN1, IN3 ON) 상태로 시작
+  digitalWrite(IN2, RELAY_OFF);
+  digitalWrite(IN4, RELAY_OFF);
+  digitalWrite(IN1, RELAY_ON);
+  digitalWrite(IN3, RELAY_ON);
 
-    printRelayState("초기 RETRACT (1,3 ON)");
+  actuatorState = 0;  // 초기 상태를 RETRACT(0)로 설정
 
-    if (USE_LOADCELL1) { scale1.begin(LOADCELL1_DOUT_PIN, LOADCELL1_SCK_PIN); scale1.set_scale(SET_SCALE1); }
-    if (USE_LOADCELL2) { scale2.begin(LOADCELL2_DOUT_PIN, LOADCELL2_SCK_PIN); scale2.set_scale(SET_SCALE2); }
-    if (USE_LOADCELL3) { scale3.begin(LOADCELL3_DOUT_PIN, LOADCELL3_SCK_PIN); scale3.set_scale(SET_SCALE3); }
+  printRelayState("초기 RETRACT (1,3 ON)");
 
-    Serial.println("Tare...");
-    delay(500);
-    if (USE_LOADCELL1) scale1.tare(10);
-    if (USE_LOADCELL2) scale2.tare(10);
-    if (USE_LOADCELL3) scale3.tare(10);
+  if (USE_LOADCELL1) {
+    scale1.begin(LOADCELL1_DOUT_PIN, LOADCELL1_SCK_PIN);
+    scale1.set_scale(SET_SCALE1);
+  }
+  if (USE_LOADCELL2) {
+    scale2.begin(LOADCELL2_DOUT_PIN, LOADCELL2_SCK_PIN);
+    scale2.set_scale(SET_SCALE2);
+  }
+  if (USE_LOADCELL3) {
+    scale3.begin(LOADCELL3_DOUT_PIN, LOADCELL3_SCK_PIN);
+    scale3.set_scale(SET_SCALE3);
+  }
 
-    // BLE 초기화
-    BLEDevice::init("SmartLoadcell-A10");
-    pServer = BLEDevice::createServer();
-    pServer->setCallbacks(new MyServerCallbacks());
+  // 💡 로드셀 안정화를 위한 지연 시간 추가 (필요시)
+  Serial.println("Waiting for HX711s to stabilize...");
+  delay(1000);
 
-    BLEService* pService = pServer->createService(SERVICE_UUID);
+  Serial.println("Tare...");
+  delay(500);
+  if (USE_LOADCELL1 && scale1.is_ready()) scale1.tare(10);
+  if (USE_LOADCELL2 && scale2.is_ready()) scale2.tare(10);
+  if (USE_LOADCELL3 && scale3.is_ready()) scale3.tare(10);
+  Serial.println("-> 초기 Tare 완료 (Unready 센서는 건너뜀)");
 
-    pNotifyChar = pService->createCharacteristic(
-        CHAR_UUID_NOTIFY,
-        BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY
-    );
-    pNotifyChar->addDescriptor(new BLE2902()); // CCCD 디스크립터
+  // BLE 초기화
+  BLEDevice::init("SmartLoadcell-A10");
+  pServer = BLEDevice::createServer();
+  pServer->setCallbacks(new MyServerCallbacks());
 
-    BLECharacteristic* pWriteChar =
-        pService->createCharacteristic(CHAR_UUID_WRITE, BLECharacteristic::PROPERTY_WRITE);
-    pWriteChar->setCallbacks(new CmdCallback());
+  BLEService* pService = pServer->createService(SERVICE_UUID);
 
-    pService->start();
-    pAdvertising = BLEDevice::getAdvertising();
-    pAdvertising->addServiceUUID(SERVICE_UUID);
-    BLEDevice::startAdvertising();
+  pNotifyChar = pService->createCharacteristic(
+    CHAR_UUID_NOTIFY,
+    BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
+  pNotifyChar->addDescriptor(new BLE2902());  // CCCD 디스크립터
 
-    startAP();
-    startWebServer();
+  BLECharacteristic* pWriteChar =
+    pService->createCharacteristic(CHAR_UUID_WRITE, BLECharacteristic::PROPERTY_WRITE);
+  pWriteChar->setCallbacks(new CmdCallback());
+
+  pService->start();
+  pAdvertising = BLEDevice::getAdvertising();
+  pAdvertising->addServiceUUID(SERVICE_UUID);
+  BLEDevice::startAdvertising();
+
+  startAP();
+  startWebServer();
 }
 
 // =====================================================
 // LOOP
 // =====================================================
 void loop() {
-    
-    server.handleClient();
 
-    float samples[NUM_SAMPLES];
-    float lastW1 = 0, lastW2 = 0, lastW3 = 0;
+  server.handleClient();
 
-    static unsigned long lastLogMs = 0;  // <-- 로그 출력 주기 제어용 (추가)
+  float samples[NUM_SAMPLES];
+  float lastW1 = 0, lastW2 = 0, lastW3 = 0;
 
-    // 5개의 샘플을 읽어서 중앙값 필터링 준비
-    for (int i = 0; i < NUM_SAMPLES; i++) {
-        float w1 = USE_LOADCELL1 ? scale1.get_units(1) : 0;
-        float w2 = USE_LOADCELL2 ? scale2.get_units(1) : 0;
-        float w3 = USE_LOADCELL3 ? scale3.get_units(1) : 0;
+  // 디버깅을 위해 Raw Value를 저장할 변수 추가
+  long raw1 = 0, raw2 = 0, raw3 = 0;
 
-        lastW1 = w1; lastW2 = w2; lastW3 = w3;
-        samples[i] = w1 + w2 + w3;
-        delay(2);
+  static unsigned long lastLogMs = 0;
+  static unsigned long lastReadyCheckMs = 0;
+
+  unsigned long nowMs = millis();
+  bool ready1 = USE_LOADCELL1 ? scale1.is_ready() : true;
+  bool ready2 = USE_LOADCELL2 ? scale2.is_ready() : true;
+  bool ready3 = USE_LOADCELL3 ? scale3.is_ready() : true;
+
+
+  // 🚨 로드셀 준비 상태 확인 및 경고 출력 (1초마다)
+  if (nowMs - lastReadyCheckMs >= 1000) {
+    lastReadyCheckMs = nowMs;
+    if (USE_LOADCELL1 && !ready1) Serial.println("!!! WARNING: LOADCELL1 is not ready. Treating as 0.");
+    if (USE_LOADCELL2 && !ready2) Serial.println("!!! WARNING: LOADCELL2 is not ready. Treating as 0.");
+    if (USE_LOADCELL3 && !ready3) Serial.println("!!! WARNING: LOADCELL3 is not ready. Treating as 0.");
+  }
+
+  // 5개의 샘플을 읽어서 중앙값 필터링 준비
+  for (int i = 0; i < NUM_SAMPLES; i++) {
+
+    // 센서가 준비되었을 때만 값을 읽고, 아니면 0으로 처리
+    if (USE_LOADCELL1 && ready1) {
+      lastW1 = scale1.get_units(1);
+      raw1 = scale1.get_value(1);
+    } else {
+      lastW1 = 0;
+      raw1 = 0;
     }
 
-    float medTotal = applyDeadzone(medianFilter(samples, NUM_SAMPLES));
-    lastW1 = applyDeadzone(lastW1);
-    lastW2 = applyDeadzone(lastW2);
-    lastW3 = applyDeadzone(lastW3);
-
-    unsigned long nowMs = millis();
-
-    bool over1 = USE_LOADCELL1 && (lastW1 > THRESHOLD);
-    bool over2 = USE_LOADCELL2 && (lastW2 > THRESHOLD);
-    bool over3 = USE_LOADCELL3 && (lastW3 > THRESHOLD);
-
-    bool overNow = (over1 || over2 || over3);
-
-    // 전역 변수 업데이트 (HTTP /status용)
-    g_lastW1 = lastW1;
-    g_lastW2 = lastW2;
-    g_lastW3 = lastW3;
-    g_over1 = over1;
-    g_over2 = over2;
-    g_over3 = over3;
-
-    // 오버웨이트 발생 시 Hold time 업데이트
-    if (overNow) {
-        unsigned long candidate = nowMs + EXTEND_HOLD_MS;
-        if (candidate > extendHoldUntil) extendHoldUntil = candidate;
+    if (USE_LOADCELL2 && ready2) {
+      lastW2 = scale2.get_units(1);
+      raw2 = scale2.get_value(1);
+    } else {
+      lastW2 = 0;
+      raw2 = 0;
     }
 
-    bool inExtendHoldWindow = (nowMs < extendHoldUntil);
-    bool overloaded = overNow || inExtendHoldWindow;
-
-    g_overloaded = overloaded;
-    g_autoModeHttp = autoMode;
-
-    // 시리얼 모니터링 출력
-        // 시리얼 모니터링 출력 (300ms마다 한 번만 찍기)
-    if (nowMs - lastLogMs >= 300) {   // 300ms = 0.3초, 필요하면 500으로 늘려도 됨
-        lastLogMs = nowMs;
-
-        Serial.printf(
-            "W1=%.1f | W2=%.1f | W3=%.1f | TOTAL=%.1f | over1=%c | over2=%c | over3=%c | hold=%s | mode=%s | actuator=%s\n",
-            lastW1, lastW2, lastW3, medTotal,
-            over1?'Y':'N', over2?'Y':'N', over3?'Y':'N',
-            inExtendHoldWindow?"ON":"OFF",
-            autoMode?"AUTO":"MANUAL",
-            actuatorState==1?"EXTEND":(actuatorState==0?"RETRACT":"STOP")
-        );
+    if (USE_LOADCELL3 && ready3) {
+      lastW3 = scale3.get_units(1);
+      raw3 = scale3.get_value(1);
+    } else {
+      lastW3 = 0;
+      raw3 = 0;
     }
 
+    samples[i] = lastW1 + lastW2 + lastW3;
+    delay(2);
+  }
 
-    // 자동 모드 제어 로직
-    if (autoMode) {
-        if (overloaded) {
-            if (actuatorState != 1) actuatorExtend();
-        } else {
-            if (actuatorState != 0) actuatorRetract();
-        }
+  float medTotal = applyDeadzone(medianFilter(samples, NUM_SAMPLES));
+  lastW1 = applyDeadzone(lastW1);
+  lastW2 = applyDeadzone(lastW2);
+  lastW3 = applyDeadzone(lastW3);
+
+  bool over1 = USE_LOADCELL1 && (lastW1 > THRESHOLD);
+  bool over2 = USE_LOADCELL2 && (lastW2 > THRESHOLD);
+  bool over3 = USE_LOADCELL3 && (lastW3 > THRESHOLD);
+
+  bool overNow = (over1 || over2 || over3);
+
+  // 전역 변수 업데이트 (HTTP /status용)
+  g_lastW1 = lastW1;
+  g_lastW2 = lastW2;
+  g_lastW3 = lastW3;
+  g_over1 = over1;
+  g_over2 = over2;
+  g_over3 = over3;
+
+  // 오버웨이트 발생 시 Hold time 업데이트
+  if (overNow) {
+    unsigned long candidate = nowMs + EXTEND_HOLD_MS;
+    if (candidate > extendHoldUntil) extendHoldUntil = candidate;
+  }
+
+  bool inExtendHoldWindow = (nowMs < extendHoldUntil);
+  bool overloaded = overNow || inExtendHoldWindow;
+
+  g_overloaded = overloaded;
+  g_autoModeHttp = autoMode;
+
+  // 시리얼 모니터링 출력
+  if (nowMs - lastLogMs >= 1000) {  // 300ms = 0.3초
+    lastLogMs = nowMs;
+
+    Serial.printf(
+      "W1=%.1f (Raw:%ld, Rdy:%c) | W2=%.1f (Raw:%ld, Rdy:%c) | W3=%.1f (Raw:%ld, Rdy:%c) | TOTAL=%.1f\n",
+      lastW1, raw1, ready1 ? 'Y' : 'N', lastW2, raw2, ready2 ? 'Y' : 'N', lastW3, raw3, ready3 ? 'Y' : 'N', medTotal);
+    Serial.printf(
+      "O1=%c | O2=%c | O3=%c | hold=%s | mode=%s | actuator=%s\n",
+      over1 ? 'Y' : 'N', over2 ? 'Y' : 'N', over3 ? 'Y' : 'N',
+      inExtendHoldWindow ? "ON" : "OFF",
+      autoMode ? "AUTO" : "MANUAL",
+      actuatorState == 1 ? "EXTEND" : (actuatorState == 0 ? "RETRACT" : (actuatorState == -1 ? "STOP" : "MANUAL_ACT"))
+    );
+  }
+
+  // 자동 모드 제어 로직 (수동 개별 제어 중(-2)이 아닐 때만 실행)
+  if (autoMode && actuatorState != -2) { // 🔥 -2 상태 간섭 방지 로직 추가
+    if (overloaded) {
+      if (actuatorState != 1) actuatorExtend();
+    } else {
+      if (actuatorState != 0) actuatorRetract();
     }
+  } else if (!autoMode && actuatorState == -2) { // MANUAL 모드에서 개별 수동 제어 중일 때
+      // 아무것도 하지 않음 (릴레이 상태를 유지)
+  }
 
-    // BLE Notify 전송
-    if (deviceConnected && pNotifyChar) {
-        char payload[64];
-        // actuatorState를 0:RETRACT, 1:EXTEND, -1:STOP으로 사용하므로,
-        // BLE 전송 시에는 0:RETRACT, 1:EXTEND만 사용한다고 가정하고 -1은 0으로 전송합니다.
-        int bleActuatorState = (actuatorState == 1) ? 1 : 0; 
-        
-        snprintf(payload, sizeof(payload),
-            "W,%.1f,%.1f,%.1f,%d,%d,%d\n", // W1, W2, W3, overloaded(1/0), autoMode(1/0), actuatorState(1/0)
-            lastW1, lastW2, lastW3,
-            overloaded ? 1 : 0,
-            autoMode ? 1 : 0,
-            bleActuatorState
-        );
-        pNotifyChar->setValue((uint8_t*)payload, strlen(payload));
-        pNotifyChar->notify();
-    }
+  // BLE Notify 전송
+  if (deviceConnected && pNotifyChar) {
+    char payload[64];
+    // BLE에는 0 또는 1 상태만 전송 (수동 개별 제어 상태는 0으로 간주)
+    int bleActuatorState = (actuatorState == 1) ? 1 : 0;
 
-    // BLE 연결 해제 후 광고 재시작 로직
-    if (!deviceConnected && oldDeviceConnected) {
-        delay(200);
-        oldDeviceConnected = deviceConnected;
-    }
+    snprintf(payload, sizeof(payload),
+             "W,%.1f,%.1f,%.1f,%d,%d,%d\n",  // W1, W2, W3, overloaded(1/0), autoMode(1/0), actuatorState(1/0)
+             lastW1, lastW2, lastW3,
+             overloaded ? 1 : 0,
+             autoMode ? 1 : 0,
+             bleActuatorState);
+    pNotifyChar->setValue((uint8_t*)payload, strlen(payload));
+    pNotifyChar->notify();
+  }
 
-    if (deviceConnected && !oldDeviceConnected) {
-        oldDeviceConnected = deviceConnected;
-    }
+  // BLE 연결 해제 후 광고 재시작 로직
+  if (!deviceConnected && oldDeviceConnected) {
+    delay(200);
+    oldDeviceConnected = deviceConnected;
+  }
 
-    delay(5);
+  if (deviceConnected && !oldDeviceConnected) {
+    oldDeviceConnected = deviceConnected;
+  }
+
+  delay(5);
 }
