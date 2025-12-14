@@ -1,0 +1,190 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.example.myapplication"
+4    android:versionCode="1"
+5    android:versionName="1.0" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="26"
+9        android:targetSdkVersion="35" />
+10
+11    <uses-permission android:name="android.permission.INTERNET" />
+11-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:6:5-67
+11-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:6:22-64
+12    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+12-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:7:5-76
+12-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:7:22-73
+13    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+13-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:8:5-76
+13-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:8:22-73
+14    <uses-permission android:name="android.permission.VIBRATE" />
+14-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:9:5-65
+14-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:9:22-63
+15    <uses-permission
+15-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:11:5-13:37
+16        android:name="android.permission.BLUETOOTH"
+16-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:12:9-52
+17        android:maxSdkVersion="30" />
+17-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:13:9-35
+18    <uses-permission
+18-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:15:5-17:37
+19        android:name="android.permission.BLUETOOTH_ADMIN"
+19-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:16:9-58
+20        android:maxSdkVersion="30" />
+20-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:17:9-35
+21    <uses-permission
+21-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:19:5-21:38
+22        android:name="android.permission.ACCESS_FINE_LOCATION"
+22-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:20:9-63
+23        android:maxSdkVersion="30" />
+23-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:21:9-35
+24    <uses-permission
+24-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:22:5-24:38
+25        android:name="android.permission.ACCESS_COARSE_LOCATION"
+25-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:23:9-65
+26        android:maxSdkVersion="30" />
+26-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:24:9-35
+27    <uses-permission
+27-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:26:5-29:31
+28        android:name="android.permission.BLUETOOTH_SCAN"
+28-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:27:9-57
+29        android:usesPermissionFlags="neverForLocation" />
+29-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:28:9-55
+30    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+30-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:31:5-33:31
+30-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:32:9-60
+31    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+31-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:35:5-36:31
+31-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:35:22-74
+32
+33    <uses-feature
+33-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:38:5-40:34
+34        android:name="android.hardware.bluetooth_le"
+34-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:39:9-53
+35        android:required="true" />
+35-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:40:9-32
+36
+37    <permission
+37-->[androidx.core:core:1.17.0] C:\Users\USER\.gradle\caches\8.13\transforms\7928c3b672e746b4d568b2ed16bae206\transformed\core-1.17.0\AndroidManifest.xml:22:5-24:47
+38        android:name="com.example.myapplication.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+38-->[androidx.core:core:1.17.0] C:\Users\USER\.gradle\caches\8.13\transforms\7928c3b672e746b4d568b2ed16bae206\transformed\core-1.17.0\AndroidManifest.xml:23:9-81
+39        android:protectionLevel="signature" />
+39-->[androidx.core:core:1.17.0] C:\Users\USER\.gradle\caches\8.13\transforms\7928c3b672e746b4d568b2ed16bae206\transformed\core-1.17.0\AndroidManifest.xml:24:9-44
+40
+41    <uses-permission android:name="com.example.myapplication.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+41-->[androidx.core:core:1.17.0] C:\Users\USER\.gradle\caches\8.13\transforms\7928c3b672e746b4d568b2ed16bae206\transformed\core-1.17.0\AndroidManifest.xml:26:5-97
+41-->[androidx.core:core:1.17.0] C:\Users\USER\.gradle\caches\8.13\transforms\7928c3b672e746b4d568b2ed16bae206\transformed\core-1.17.0\AndroidManifest.xml:26:22-94
+42
+43    <application
+43-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:42:5-64:19
+44        android:allowBackup="true"
+44-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:43:9-35
+45        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+45-->[androidx.core:core:1.17.0] C:\Users\USER\.gradle\caches\8.13\transforms\7928c3b672e746b4d568b2ed16bae206\transformed\core-1.17.0\AndroidManifest.xml:28:18-86
+46        android:extractNativeLibs="false"
+47        android:icon="@mipmap/ic_launcher"
+47-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:44:9-43
+48        android:label="@string/app_name"
+48-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:44:53-85
+49        android:networkSecurityConfig="@xml/network_security_config"
+49-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:49:9-69
+50        android:roundIcon="@mipmap/ic_launcher_round"
+50-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:44:97-142
+51        android:supportsRtl="true"
+51-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:45:9-35
+52        android:theme="@style/Theme.MyApplication"
+52-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:46:9-51
+53        android:usesCleartextTraffic="true" >
+53-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:48:9-44
+54        <activity
+54-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:51:11-58:16
+55            android:name="com.example.myapplication.MainActivity"
+55-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:52:9-37
+56            android:exported="true" >
+56-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:53:9-32
+57            <intent-filter>
+57-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:54:9-57:25
+58                <action android:name="android.intent.action.MAIN" />
+58-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:55:13-64
+58-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:55:21-62
+59
+60                <category android:name="android.intent.category.LAUNCHER" />
+60-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:56:13-72
+60-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:56:23-70
+61            </intent-filter>
+62        </activity>
+63        <activity
+63-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:60:9-62:39
+64            android:name="com.example.myapplication.BarricadeDetailActivity"
+64-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:61:13-52
+65            android:exported="false" />
+65-->C:\Users\USER\AndroidStudioProjects\MyApplication\app\src\main\AndroidManifest.xml:62:13-37
+66
+67        <provider
+67-->[androidx.emoji2:emoji2:1.4.0] C:\Users\USER\.gradle\caches\8.13\transforms\61566fab2c4dd9f7d7bf55dcc1c972a3\transformed\emoji2-1.4.0\AndroidManifest.xml:24:9-32:20
+68            android:name="androidx.startup.InitializationProvider"
+68-->[androidx.emoji2:emoji2:1.4.0] C:\Users\USER\.gradle\caches\8.13\transforms\61566fab2c4dd9f7d7bf55dcc1c972a3\transformed\emoji2-1.4.0\AndroidManifest.xml:25:13-67
+69            android:authorities="com.example.myapplication.androidx-startup"
+69-->[androidx.emoji2:emoji2:1.4.0] C:\Users\USER\.gradle\caches\8.13\transforms\61566fab2c4dd9f7d7bf55dcc1c972a3\transformed\emoji2-1.4.0\AndroidManifest.xml:26:13-68
+70            android:exported="false" >
+70-->[androidx.emoji2:emoji2:1.4.0] C:\Users\USER\.gradle\caches\8.13\transforms\61566fab2c4dd9f7d7bf55dcc1c972a3\transformed\emoji2-1.4.0\AndroidManifest.xml:27:13-37
+71            <meta-data
+71-->[androidx.emoji2:emoji2:1.4.0] C:\Users\USER\.gradle\caches\8.13\transforms\61566fab2c4dd9f7d7bf55dcc1c972a3\transformed\emoji2-1.4.0\AndroidManifest.xml:29:13-31:52
+72                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+72-->[androidx.emoji2:emoji2:1.4.0] C:\Users\USER\.gradle\caches\8.13\transforms\61566fab2c4dd9f7d7bf55dcc1c972a3\transformed\emoji2-1.4.0\AndroidManifest.xml:30:17-75
+73                android:value="androidx.startup" />
+73-->[androidx.emoji2:emoji2:1.4.0] C:\Users\USER\.gradle\caches\8.13\transforms\61566fab2c4dd9f7d7bf55dcc1c972a3\transformed\emoji2-1.4.0\AndroidManifest.xml:31:17-49
+74            <meta-data
+74-->[androidx.lifecycle:lifecycle-process:2.9.4] C:\Users\USER\.gradle\caches\8.13\transforms\09e36ed3bbdd410baef553113a992e4b\transformed\lifecycle-process-2.9.4\AndroidManifest.xml:29:13-31:52
+75                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+75-->[androidx.lifecycle:lifecycle-process:2.9.4] C:\Users\USER\.gradle\caches\8.13\transforms\09e36ed3bbdd410baef553113a992e4b\transformed\lifecycle-process-2.9.4\AndroidManifest.xml:30:17-78
+76                android:value="androidx.startup" />
+76-->[androidx.lifecycle:lifecycle-process:2.9.4] C:\Users\USER\.gradle\caches\8.13\transforms\09e36ed3bbdd410baef553113a992e4b\transformed\lifecycle-process-2.9.4\AndroidManifest.xml:31:17-49
+77            <meta-data
+77-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\USER\.gradle\caches\8.13\transforms\79679e068759e747163af009f0375c84\transformed\profileinstaller-1.4.0\AndroidManifest.xml:29:13-31:52
+78                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+78-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\USER\.gradle\caches\8.13\transforms\79679e068759e747163af009f0375c84\transformed\profileinstaller-1.4.0\AndroidManifest.xml:30:17-85
+79                android:value="androidx.startup" />
+79-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\USER\.gradle\caches\8.13\transforms\79679e068759e747163af009f0375c84\transformed\profileinstaller-1.4.0\AndroidManifest.xml:31:17-49
+80        </provider>
+81
+82        <receiver
+82-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\USER\.gradle\caches\8.13\transforms\79679e068759e747163af009f0375c84\transformed\profileinstaller-1.4.0\AndroidManifest.xml:34:9-52:20
+83            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+83-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\USER\.gradle\caches\8.13\transforms\79679e068759e747163af009f0375c84\transformed\profileinstaller-1.4.0\AndroidManifest.xml:35:13-76
+84            android:directBootAware="false"
+84-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\USER\.gradle\caches\8.13\transforms\79679e068759e747163af009f0375c84\transformed\profileinstaller-1.4.0\AndroidManifest.xml:36:13-44
+85            android:enabled="true"
+85-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\USER\.gradle\caches\8.13\transforms\79679e068759e747163af009f0375c84\transformed\profileinstaller-1.4.0\AndroidManifest.xml:37:13-35
+86            android:exported="true"
+86-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\USER\.gradle\caches\8.13\transforms\79679e068759e747163af009f0375c84\transformed\profileinstaller-1.4.0\AndroidManifest.xml:38:13-36
+87            android:permission="android.permission.DUMP" >
+87-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\USER\.gradle\caches\8.13\transforms\79679e068759e747163af009f0375c84\transformed\profileinstaller-1.4.0\AndroidManifest.xml:39:13-57
+88            <intent-filter>
+88-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\USER\.gradle\caches\8.13\transforms\79679e068759e747163af009f0375c84\transformed\profileinstaller-1.4.0\AndroidManifest.xml:40:13-42:29
+89                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+89-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\USER\.gradle\caches\8.13\transforms\79679e068759e747163af009f0375c84\transformed\profileinstaller-1.4.0\AndroidManifest.xml:41:17-91
+89-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\USER\.gradle\caches\8.13\transforms\79679e068759e747163af009f0375c84\transformed\profileinstaller-1.4.0\AndroidManifest.xml:41:25-88
+90            </intent-filter>
+91            <intent-filter>
+91-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\USER\.gradle\caches\8.13\transforms\79679e068759e747163af009f0375c84\transformed\profileinstaller-1.4.0\AndroidManifest.xml:43:13-45:29
+92                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+92-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\USER\.gradle\caches\8.13\transforms\79679e068759e747163af009f0375c84\transformed\profileinstaller-1.4.0\AndroidManifest.xml:44:17-85
+92-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\USER\.gradle\caches\8.13\transforms\79679e068759e747163af009f0375c84\transformed\profileinstaller-1.4.0\AndroidManifest.xml:44:25-82
+93            </intent-filter>
+94            <intent-filter>
+94-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\USER\.gradle\caches\8.13\transforms\79679e068759e747163af009f0375c84\transformed\profileinstaller-1.4.0\AndroidManifest.xml:46:13-48:29
+95                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+95-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\USER\.gradle\caches\8.13\transforms\79679e068759e747163af009f0375c84\transformed\profileinstaller-1.4.0\AndroidManifest.xml:47:17-88
+95-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\USER\.gradle\caches\8.13\transforms\79679e068759e747163af009f0375c84\transformed\profileinstaller-1.4.0\AndroidManifest.xml:47:25-85
+96            </intent-filter>
+97            <intent-filter>
+97-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\USER\.gradle\caches\8.13\transforms\79679e068759e747163af009f0375c84\transformed\profileinstaller-1.4.0\AndroidManifest.xml:49:13-51:29
+98                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+98-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\USER\.gradle\caches\8.13\transforms\79679e068759e747163af009f0375c84\transformed\profileinstaller-1.4.0\AndroidManifest.xml:50:17-95
+98-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\USER\.gradle\caches\8.13\transforms\79679e068759e747163af009f0375c84\transformed\profileinstaller-1.4.0\AndroidManifest.xml:50:25-92
+99            </intent-filter>
+100        </receiver>
+101    </application>
+102
+103</manifest>

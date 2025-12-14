@@ -368,12 +368,9 @@ class MainActivity : AppCompatActivity() {
                 return
             }
 
-            val totalWeight = w1 + w2 + w3
-
             runOnUiThread {
                 handleSensorUpdateFromSource(
                     source = "BLE",
-                    totalWeight = totalWeight,
                     w1 = w1,
                     w2 = w2,
                     w3 = w3,
@@ -471,7 +468,6 @@ class MainActivity : AppCompatActivity() {
     // ---------- 공통 센서 UI 업데이트 (BLE / WiFi 공용) ----------
     private fun handleSensorUpdateFromSource(
         source: String,
-        totalWeight: Float,
         w1: Float,
         w2: Float,
         w3: Float,
@@ -482,15 +478,19 @@ class MainActivity : AppCompatActivity() {
         val now = System.currentTimeMillis()
         lastBleUpdateMs = now  // WiFi도 같이 씀
 
-        val weightText = "%.2f".format(totalWeight)
+        // 🌟 하중 합계와 평균 계산 (추가된 부분)
+        val totalWeight = w1 + w2 + w3
+        val averageWeight = totalWeight / 3f
 
-        // 상단 카드 텍스트 (합계 기준 표시)
+        val weightText = "%.2f".format(averageWeight) // 🌟 평균 하중을 출력 텍스트로 사용
+
+        // 상단 카드 텍스트 (🌟 평균 기준 표시)
         txtSensorStatus?.text =
-            "하중($source 합계): ${weightText} g" + if (overloaded) " (과부하)" else " (정상)"
+            "하중($source 평균): ${weightText} g" + if (overloaded) " (과부하)" else " (정상)"
 
-        // 실시간 대시보드
+        // 실시간 대시보드 (🌟 합계를 평균으로 변경)
         txtFsrValue?.text =
-            "합계: ${weightText} g\nW1=%.1f, W2=%.1f, W3=%.1f".format(w1, w2, w3)
+            "평균: ${weightText} g\nW1=%.1f, W2=%.1f, W3=%.1f".format(w1, w2, w3)
         txtLedState?.text    = "모드: ${if (autoMode) "AUTO" else "MANUAL"}"
         txtBuzzerState?.text = "과부하 플래그: ${if (overloaded) "예" else "아니오"}"
         txtMotorState?.text  = "게이트: ${if (actuatorExtended) "게이트 오픈" else "게이트 클로즈"}"
@@ -517,7 +517,8 @@ class MainActivity : AppCompatActivity() {
             pushPresetAlarm(
                 level = AlarmLevel.WARN,
                 title = "하중 임계 초과",
-                detail = "현재 합계 하중 ${weightText} g / 임계값 ${LOAD_THRESHOLD.toInt()} g",
+                // 🌟 상세 알람 메시지 수정: 출력은 평균이지만 임계값은 합계 기준임을 명시
+                detail = "현재 평균 하중 ${weightText} g / (합계 임계값 ${LOAD_THRESHOLD.toInt()} g)",
                 device = serialOrDefault("A-10")
             )
         }
@@ -553,12 +554,9 @@ class MainActivity : AppCompatActivity() {
                         val autoMode = json.optInt("autoMode", 1) == 1
                         val actuatorExtended = json.optInt("actuatorState", 0) == 1
 
-                        val total = w1 + w2 + w3
-
                         withContext(Dispatchers.Main) {
                             handleSensorUpdateFromSource(
                                 source = "WiFi",
-                                totalWeight = total,
                                 w1 = w1,
                                 w2 = w2,
                                 w3 = w3,

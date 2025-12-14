@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- 기본은 HTTP 금지 -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- 로컬 AP(ESP32)는 예외로 HTTP 허용 -->
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- ESP32 AP IP (AP 모드 IP) -->
+        <domain includeSubdomains="true">192.168.4.1</domain>
+    </domain-config>
+</network-security-config>

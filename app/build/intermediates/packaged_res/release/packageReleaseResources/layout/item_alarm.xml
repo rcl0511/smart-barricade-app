@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginVertical="6dp"
+    android:foreground="?attr/selectableItemBackground"
+    android:elevation="2dp"
+    app:cardCornerRadius="16dp"
+    app:strokeColor="?attr/colorOutlineVariant"
+    app:strokeWidth="1dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="14dp">
+
+        <!-- 1행: 심각도칩 + 시간/소스 + 닫기(X) -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipSeverity"
+                style="@style/Widget.Material3.Chip.Assist"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="INFO"
+                android:textStyle="bold"
+                android:textColor="#284c6d"
+                app:chipBackgroundColor="@android:color/transparent"
+                app:chipStrokeWidth="0dp"
+                app:rippleColor="@android:color/transparent"
+                app:chipCornerRadius="8dp"
+                android:elevation="0dp" />
+
+
+            <ImageButton
+                android:id="@+id/btnDismiss"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="닫기"
+                android:padding="6dp"
+                android:src="@drawable/ic_close_24"
+                app:tint="?attr/colorOnSurfaceVariant"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="@id/chipSeverity"
+                app:layout_constraintBottom_toBottomOf="@id/chipSeverity"
+                tools:ignore="TouchTargetSizeCheck" />
+
+            <TextView
+                android:id="@+id/txtTime"
+                android:layout_width="151dp"
+                android:layout_height="29dp"
+                android:layout_marginStart="10dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="--:--:--"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="25sp"
+                app:layout_constraintBottom_toBottomOf="@id/chipSeverity"
+                app:layout_constraintEnd_toStartOf="@id/btnDismiss"
+                app:layout_constraintHorizontal_bias="0.24"
+                app:layout_constraintStart_toEndOf="@id/chipSeverity"
+                app:layout_constraintTop_toTopOf="@id/chipSeverity"
+                app:layout_constraintVertical_bias="0.526" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <!-- 2행: 제목 -->
+        <TextView
+            android:id="@+id/txtTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="우측 패널 하중 임계 근접"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:textColor="@android:color/black" />
+
+        <!-- 3행: 내용 -->
+        <TextView
+            android:id="@+id/txtMessage"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="현재 하중 150kg, 임계값 200kg, 2m 구간 밀집도 상승"
+            android:textSize="15sp"
+            android:textColor="?attr/colorOnSurfaceVariant" />
+
+        <!-- 4행: 버튼 영역 -->
+
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

@@ -56,22 +56,21 @@ dependencies {
     // UI & Material Design
     implementation(libs.material)
     implementation(libs.androidx.activity.compose)
+    // 🌟 수정: GridLayout 의존성을 깔끔하게 하나로 정의
+    implementation("androidx.gridlayout:gridlayout:1.0.0")
 
     // Compose
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
-    implementation(libs.androidx.material3)
+    implementation(libs.androidx.material3) // 🌟 수정: 끝의 'Q' 제거
 
     // 통신 및 비동기 처리
     implementation(libs.okhttp)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.retrofit)
     implementation(libs.converter.gson)
-
-    // 프로젝트에서 필요한 라이브러리
-    implementation("androidx.gridlayout:gridlayout:1.0.0") // XML 오류 해결
 
     // 그래프 라이브러리 (MPAndroidChart)
     implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
