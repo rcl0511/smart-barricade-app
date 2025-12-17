@@ -1,15 +1,23 @@
-*.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
+# 코틀린/안드로이드 컴파일 결과물
 /build
-/captures
+/*/build
+.gradle
+.kotlin
+
+# 안드로이드 스튜디오 개인 설정
+.idea/
+*.iml
+*.iws
 .externalNativeBuild
 .cxx
+
+# 로컬 환경 설정 (절대 공유 금지)
 local.properties
+
+# 로그 및 캡처 파일
+/captures
+*.log
+
+# OS 시스템 파일
+.DS_Store
+
