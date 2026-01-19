@@ -21,6 +21,9 @@ ESP32-S3 기반 **Smart Barricade 보드**와 Android 디바이스 간
 - BLE / WiFi 연결 상태 확인(- 실시간 센서 데이터 전송, 제어 명령 전달)
 
 
+<img src="https://github.com/user-attachments/assets/f2d1c70a-7888-4606-8fa3-9d1237cb4b51" width="300" />
+<img src="https://github.com/user-attachments/assets/22065484-616c-4e60-b2a3-43a813b78a84" width="300" />
+
 ---
 
 
@@ -54,7 +57,7 @@ flowchart TD
     B -->|"SoftAP (2.4GHz)"| E
     C -->|"HTTP GET /status\nHTTP GET /cmd"| E
 ```
-
+<img width="1140" height="846" alt="Image" src="https://github.com/user-attachments/assets/6594c461-383d-43e2-828e-b4f5dfc8874b" />
 ---
 
 # WiFi AP 모드 – 로컬 HTTP 제어
@@ -67,6 +70,11 @@ ESP32-S3는 전시/실험 환경에서 **자체 WiFi AP 모드**로 동작합니
 
 Android 기기가 AP에 연결되면  
 앱 또는 브라우저에서 `/status`, `/cmd` 엔드포인트 호출이 가능합니다.
+
+값 실시간 현황
+- <p align="center">
+  <img src="https://github.com/user-attachments/assets/948f4d8d-8437-471b-96db-5a611e0916a8" width="300" />
+</p>
 
 ---
 **Adaptive Smart Barricade는**
